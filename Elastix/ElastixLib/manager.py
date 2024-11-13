@@ -41,9 +41,10 @@ class PresetManagerDialog:
   def selectionModel(self):
     return self.ui.tableView.selectionModel()
 
-  def __init__(self):
+  def __init__(self, databaseFilePath: str):
     from Elastix import ElastixLogic
     self.elastixLogic = ElastixLogic()
+    self.elastixLogic.databaseFile = databaseFilePath
     self.setup()
 
   def setup(self):
@@ -176,7 +177,7 @@ class PresetManagerDialog:
                                       self.elastixLogic.getRegistrationPresets()]
     validId = self.ui.idBox.text != '' and not idExists
     self.ui.idBoxWarning.text = "*" if idExists else ''
-    self.ui.buttonBox.button(qt.QDialogButtonBox.Ok).setEnabled(validId and validFormData)
+    self.ui.buttonBox.button(qt.QDialogButtonBox.Save).setEnabled(validId and validFormData)
 
     self.ui.warningLabel.text = "*ParameterSet with given id already exists" if idExists else ''
     selectedRow = self.getSelectedRow()
@@ -202,8 +203,7 @@ class PresetManagerDialog:
     for pIdx, paramFile in enumerate(preset[RegistrationPresets_ParameterFilenames]):
       self.onAddButton()
       modelIndex = self.model.index(pIdx, 0)
-      databaseDir = self.elastixLogic.registrationParameterFilesDir
-      self.model.setData(modelIndex, os.path.join(databaseDir, paramFile))
+      self.model.setData(modelIndex, os.path.join(self.elastixLogic.databaseDir, paramFile))
 
   def exec_(self):
     self.updateGUI()
