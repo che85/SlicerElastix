@@ -4,6 +4,7 @@ import subprocess
 import vtk, qt, slicer
 
 from ElastixLib.constants import *
+from ElastixLib.manager import PresetManager
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import logging
@@ -12,6 +13,24 @@ import logging
 #
 # Elastix
 #
+
+
+class DatabaseNotFoundMessageBox(qt.QMessageBox):
+
+  def __init__(self, text, *args):
+    qt.QMessageBox.__init__(self, *args)
+    self.standardButtons = qt.QMessageBox.RestoreDefaults
+
+    self.file_path = None
+    self.text = text
+
+    self.addButton("Locate File", qt.QMessageBox.ActionRole)
+    self.buttonClicked.connect(lambda button: self.handle_button_click(button))
+
+  def handle_button_click(self, button):
+    if self.buttonRole(button) == qt.QMessageBox.ActionRole:
+      self.file_path = qt.QFileDialog.getOpenFileName(self, "Locate Elastix Database File", "", "XML files (*.xml)")
+
 
 class Elastix(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -25,8 +44,9 @@ class Elastix(ScriptedLoadableModule):
     self.parent.associatedNodeTypes = ["vtkMRMLScriptedModuleNode"]
     self.parent.dependencies = []
     self.parent.contributors = ["Andras Lasso (PerkLab - Queen's University), Christian Herz (CHOP)"]
+    # TODO: change helptext accordingly for adding new presets
     self.parent.helpText = """Align volumes based on image content using <a href="http://elastix.isi.uu.nl/">Elastix medical image registration toolbox</a>.
-<p>Registration troubleshooting: check "Keep temporary files" option before starting regsitration and click on "Show temp folder" to open the folder that contains detailed logs.
+<p>Registration troubleshooting: check "Keep temporary files" option before starting registration and click on "Show temp folder" to open the folder that contains detailed logs.
 <p>Edit registration parameters: open Advanced section, click "Show database folder", and edit presets. To add a new preset or modify registration phases, modify ElastixParameterSetDatabase.xml.
 See <a href="http://elastix.bigr.nl/wiki/index.php/Parameter_file_database">registration parameter set database</a> and <a href="http://elastix.isi.uu.nl/doxygen/index.html">Elastix documentation</a> for more details."""
     self.parent.acknowledgementText = """
@@ -85,23 +105,15 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     self.refreshRegistrationPresetList()
 
-    self.ui.customElastixBinDirSelector.settingKey = self.logic.customElastixBinDirSettingsKey
-    self.ui.customElastixBinDirSelector.retrieveHistory()
-    self.ui.customElastixBinDirSelector.currentPath = ''
-
-    self.ui.databasePathLineEdit.settingKey = self.logic.databaseFileSettingsKey
-    self.ui.databasePathLineEdit.retrieveHistory()
-
     # These connections ensure that we update parameter node when scene is closed
     self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
     self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
 
-    self.ui.restoreDatabaseFolder.setIcon(qt.QIcon(":Icons/Small/SlicerUndo.png"))
-
     # connections
     self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.ui.showTemporaryFilesFolderButton.connect('clicked(bool)', self.onShowTemporaryFilesFolder)
-    self.ui.showDatabaseFolderButton.connect('clicked(bool)', self.onShowDatabaseFolder)
+    self.ui.showBuiltinPresetFolderButton.connect('clicked(bool)', self.onShowBuiltinPresetsFolder)
+    self.ui.showUserPresetFolderButton.connect('clicked(bool)', self.onShowUserPresetsFolder)
     self.ui.parameterNodeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.setParameterNode)
 
     self.ui.fixedVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
@@ -114,7 +126,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.forceDisplacementFieldOutputCheckbox.toggled.connect(self.updateParameterNodeFromGUI)
     self.ui.registrationPresetSelector.currentIndexChanged.connect(self.updateParameterNodeFromGUI)
     self.ui.customElastixBinDirSelector.currentPathChanged.connect(self.onCustomElastixBinDirChanged)
-    self.ui.databasePathLineEdit.currentPathChanged.connect(self.onDatabaseFileChanged)
+
     # Immediately update deleteTemporaryFiles in the logic to make it possible to decide to
     # keep the temporary file while the registration is running
     self.ui.keepTemporaryFilesCheckBox.connect("toggled(bool)", self.onKeepTemporaryFilesToggled)
@@ -126,7 +138,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     logging.debug("Reloading Elastix")
 
     packageName='ElastixLib'
-    submoduleNames=['constants', 'manager']
+    submoduleNames=['constants', 'database', 'manager']
     import imp
     f, filename, description = imp.find_module(packageName)
     package = imp.load_module(packageName, f, filename, description)
@@ -190,7 +202,6 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     wasModified = self._parameterNode.StartModify()  # Modify all properties in a single batch
 
-    self._parameterNode.SetParameter(self.logic.DATABASE_FILE_PARAM, self.ui.databasePathLineEdit.currentPath)
     self._parameterNode.SetNodeReferenceID(self.logic.FIXED_VOLUME_REF, self.ui.fixedVolumeSelector.currentNodeID)
     self._parameterNode.SetNodeReferenceID(self.logic.MOVING_VOLUME_REF, self.ui.movingVolumeSelector.currentNodeID)
     self._parameterNode.SetNodeReferenceID(self.logic.FIXED_VOLUME_MASK_REF, self.ui.fixedVolumeMaskSelector.currentNodeID)
@@ -201,7 +212,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self._parameterNode.SetParameter(self.logic.FORCE_GRID_TRANSFORM_PARAM, str(self.ui.forceDisplacementFieldOutputCheckbox.checked))
 
     registrationPreset = self.logic.getRegistrationPresets()[self.ui.registrationPresetSelector.currentIndex]
-    self._parameterNode.SetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM, registrationPreset[RegistrationPresets_Id])
+    self._parameterNode.SetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM, registrationPreset.id)
 
     self._parameterNode.EndModify(wasModified)
 
@@ -216,7 +227,6 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # Make sure GUI changes do not call updateParameterNodeFromGUI (it could cause infinite loop)
     self._updatingGUIFromParameterNode = True
 
-    self.ui.databasePathLineEdit.currentPath = self._parameterNode.GetParameter(self.logic.DATABASE_FILE_PARAM)
     self.ui.fixedVolumeSelector.setCurrentNode(self._parameterNode.GetNodeReference(self.logic.FIXED_VOLUME_REF))
     self.ui.movingVolumeSelector.setCurrentNode(self._parameterNode.GetNodeReference(self.logic.MOVING_VOLUME_REF))
     self.ui.fixedVolumeMaskSelector.setCurrentNode(self._parameterNode.GetNodeReference(self.logic.FIXED_VOLUME_MASK_REF))
@@ -240,80 +250,39 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
   def onCreatePresetPressed(self):
     from ElastixLib.manager import PresetManagerDialog
-    dialog = PresetManagerDialog(self.logic.databaseFile)
+    manager = self.logic
+    dialog = PresetManagerDialog(manager)
 
     returnCode = dialog.exec_()
     while returnCode not in [qt.QDialog.Accepted, qt.QDialog.Rejected]:
-      dialog = PresetManagerDialog(self.logic.databaseFile)
+      dialog = PresetManagerDialog(manager)
       returnCode = dialog.exec_()
 
     if returnCode == qt.QDialog.Accepted:
-      self.createPreset(dialog)
-
-  def createPreset(self, dialog):
-    filenames = dialog.getParameterFiles()
-    if len(filenames) > 0:
-      from shutil import copyfile
-      import xml.etree.ElementTree as ET
-      databaseDir = self.logic.databaseDir
-      presetDatabase = os.path.join(databaseDir, 'ElastixParameterSetDatabase.xml')
-      xml = ET.parse(presetDatabase)
-      root = xml.getroot()
-      attributes = dialog.getMetaInformation()
-
-      presetElement = ET.SubElement(root, "ParameterSet", attributes)
-      parFilesElement = ET.SubElement(presetElement, "ParameterFiles")
-
-      # Copy parameter files to database directory
-      for file in filenames:
-        filename = os.path.basename(file)
-        newFilePath = os.path.join(databaseDir, filename)
-        createFileCopy = True
-        discard = False
-        if os.path.exists(newFilePath):
-          import hashlib
-          # check if identical
-          if hashlib.md5(open(newFilePath, 'rb').read()).hexdigest() == hashlib.md5(open(file, 'rb').read()).hexdigest():
-            createFileCopy = False
-          else: # not identical but same name
-            if self.overwriteParFile(filename):
-              createFileCopy = True
-            else:
-              discard = True
-        if createFileCopy:
-          copyfile(file, newFilePath)
-        if not discard:
-          ET.SubElement(parFilesElement, "File", {"Name": filename})
-
-      xml.write(presetDatabase)
-
-      # Refresh list and select new preset
+      # TODO:
+      manager.createPreset(dialog)
       self.selectNewPreset()
 
-    # Destroy old dialog box
-    self.newParameterButtons = []
-
   def selectNewPreset(self):
+    # refresh preset list and select new preset
     allPresets = self.logic.getRegistrationPresets(force_refresh=True)
     preset = allPresets[len(allPresets) - 1]
     self.ui.registrationPresetSelector.addItem(
-      f"{preset[RegistrationPresets_Modality]} ({preset[RegistrationPresets_Content]})"
+      f"{preset.modality} ({preset.content})"
     )
     self.ui.registrationPresetSelector.currentIndex = self.ui.registrationPresetSelector.count - 1
 
-  def overwriteParFile(self, filename):
-    d = qt.QDialog()
-    resp = qt.QMessageBox.warning(d, "Overwrite File?",
-                                  "File \"%s\" already exists and is not identical, do you want to overwrite it? (Clicking Discard would exclude the file from the preset)" % filename,
-                                  qt.QMessageBox.Save | qt.QMessageBox.Discard | qt.QMessageBox.Abort , qt.QMessageBox.Save)
-    return resp == qt.QMessageBox.Save
-
+  def _showFolder(self, path):
+    qt.QDesktopServices().openUrl(qt.QUrl("file:///" + path, qt.QUrl.TolerantMode))
 
   def onShowTemporaryFilesFolder(self):
-    qt.QDesktopServices().openUrl(qt.QUrl("file:///" + self.logic.getTempDirectoryBase(), qt.QUrl.TolerantMode))
+    self._showFolder(self.logic.getTempDirectoryBase())
 
-  def onShowDatabaseFolder(self):
-    qt.QDesktopServices().openUrl(qt.QUrl("file:///" + self.logic.databaseDir, qt.QUrl.TolerantMode))
+  def onShowBuiltinPresetsFolder(self):
+    self._showFolder(self.logic.getBuiltinPresetsDir())
+
+  def onShowUserPresetsFolder(self):
+    self._showFolder(self.logic.getUserPresetsDir())
 
   def onKeepTemporaryFilesToggled(self, toggle):
     self.logic.deleteTemporaryFiles = toggle
@@ -374,18 +343,49 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.statusLabel.appendPlainText(text)
     slicer.app.processEvents()  # force update
 
-  def onDatabaseFileChanged(self, path):
-    if os.path.exists(path):
-      wasBlocked = self.ui.databasePathLineEdit.blockSignals(True)
-      self.ui.databasePathLineEdit.addCurrentPathToHistory()
-      self.ui.databasePathLineEdit.blockSignals(wasBlocked)
-    lastSelectedPreset = self.logic.getRegistrationPresets()[self.ui.registrationPresetSelector.currentIndex]
-    self.logic.databaseFile = self.ui.databasePathLineEdit.currentPath
-    self.refreshRegistrationPresetList()
-    # TODO: need to make sure if there was something selected with the same id, to reselect it?
-    # TODO: if selected preset doesn't exist in new list, notify user and select first one
-    # TODO: what if there is nothing matching the previous one? select first?
-
+  # def onDatabaseFileChanged(self, path):
+  #   if os.path.exists(path):
+  #     wasBlocked = self.ui.databasePathLineEdit.blockSignals(True)
+  #     self.ui.databasePathLineEdit.addCurrentPathToHistory()
+  #     self.ui.databasePathLineEdit.blockSignals(wasBlocked)
+  #   else:
+  #     if path != '':
+  #       slicer.util.warningDisplay("Selected database file does not exist. Resetting to default")
+  #       # TODO: provide dialog with Reset to default or Locate (needs to have the last saved presetId in it)
+  #       # locateFileDialog = DatabaseNotFoundMessageBox("Database file could not be found. You have the option to fall "
+  #       #                                               "back to the default database or located the associated database.")
+  #       # satisfied = False
+  #       # while not satisfied:
+  #       #   returnCode = locateFileDialog.exec()
+  #       #   if returnCode == qt.QMessageBox.RestoreDefaults:
+  #       #     satisfied = True
+  #       #
+  #       #   else:
+  #       #     # TODO: check if preset exists in xml
+  #       #   pass
+  #       #     # file_path = locateFileDialog.file_path
+  #       #     # if file_path:
+  #       #     #   presetID = self._parameterNode.GetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM)
+  #       #     #   # read xml and check for the ID
+  #       #     #   l = ElastixLogic
+  #       #     satisfied = True
+  #
+  #     wasBlocked = self.ui.databasePathLineEdit.blockSignals(True)
+  #     self.ui.databasePathLineEdit.currentPath = ''
+  #     self.ui.databasePathLineEdit.blockSignals(wasBlocked)
+  #
+  #   self.logic.databaseFile = self.ui.databasePathLineEdit.currentPath
+  #
+  #   wasBlocked = self.ui.databasePathLineEdit.blockSignals(True)
+  #   self.ui.databasePathLineEdit.currentPath
+  #   self.ui.databasePathLineEdit.blockSignals(wasBlocked)
+  #
+  #   self.refreshRegistrationPresetList()
+  #   # TODO: need to make sure if there was something selected with the same id, to reselect it?
+  #   # TODO: if selected preset doesn't exist in new list, notify user and select first one
+  #   # TODO: what if there is nothing matching the previous one? select first?
+  #
+  #   self.updateParameterNodeFromGUI()
 
   def onCustomElastixBinDirChanged(self, path):
     if os.path.exists(path):
@@ -399,7 +399,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.registrationPresetSelector.clear()
     for preset in self.logic.getRegistrationPresets():
       self.ui.registrationPresetSelector.addItem(
-        f"{preset[RegistrationPresets_Modality]} ({preset[RegistrationPresets_Content]})"
+        f"{preset.modality} ({preset.content})"
       )
     self.ui.registrationPresetSelector.blockSignals(wasBlocked)
 
@@ -408,7 +408,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 # ElastixLogic
 #
 
-class ElastixLogic(ScriptedLoadableModuleLogic):
+class ElastixLogic(ScriptedLoadableModuleLogic, PresetManager):
   """This class should implement all the actual
   computation done by your module.  The interface
   should be such that other python code can import
@@ -427,48 +427,26 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
   FORCE_GRID_TRANSFORM_PARAM = "ForceGridTransform"
   INITIAL_TRANSFORM_REF = "InitialTransform"
   REGISTRATION_PRESET_ID_PARAM = "RegistrationPresetId"
-  DATABASE_FILE_PARAM = "DatabaseLocation"
 
   DEFAULT_PRESET_ID = "default0"
-  __DEFAULT_DATABASE_FILE = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Resources', 'RegistrationParameters',
-                 'ElastixParameterSetDatabase.xml'))
 
   INPUT_DIR_NAME = "input"
   OUTPUT_RESAMPLE_DIR_NAME = "result-resample"
   OUTPUT_TRANSFORM_DIR_NAME = "result-transform"
 
-  @property
-  def databaseFile(self):
-    if not self._databaseFile:
-      self.databaseFile = self.__DEFAULT_DATABASE_FILE
-    return self._databaseFile
-
-  @databaseFile.setter
-  def databaseFile(self, path):
-    self._databaseFile = path
-    self.getRegistrationPresets(force_refresh=True)
-
-  @property
-  def databaseDir(self):
-    return os.path.abspath(os.path.join(self.databaseFile, os.pardir))
-
   def __init__(self):
     ScriptedLoadableModuleLogic.__init__(self)
+    PresetManager.__init__(self)
 
     self.logCallback = None
     self.isRunning = False
     self.cancelRequested = False
     self.deleteTemporaryFiles = True
     self.logStandardOutput = False
-    self.registrationPresets = None
     self.customElastixBinDirSettingsKey = 'Elastix/CustomElastixPath'
-    self.databaseFileSettingsKey = 'Elastix/DatabaseFileLocation'
 
     self.scriptPath = os.path.dirname(os.path.abspath(__file__))
     self.elastixBinDir = None # this will be determined dynamically
-
-    self._databaseFile = None
 
     import platform
     executableExt = '.exe' if platform.system() == 'Windows' else ''
@@ -483,8 +461,6 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
       parameterNode.SetParameter(self.FORCE_GRID_TRANSFORM_PARAM, "False")
     if not parameterNode.GetParameter(self.REGISTRATION_PRESET_ID_PARAM):
       parameterNode.SetParameter(self.REGISTRATION_PRESET_ID_PARAM, self.DEFAULT_PRESET_ID)
-    if not parameterNode.GetParameter(self.DATABASE_FILE_PARAM):
-      parameterNode.SetParameter(self.DATABASE_FILE_PARAM, self.__DEFAULT_DATABASE_FILE)
 
   def addLog(self, text):
     logging.info(text)
@@ -545,37 +521,13 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
 
     return elastixEnv
 
-  def getRegistrationPresets(self, force_refresh=False):
-    # TODO: think about this should even be cached
-    if self.registrationPresets and not force_refresh:
-      return self.registrationPresets
-
-    # Read database from XML file
-    elastixParameterSetDatabasePath = self.databaseFile
-    if not os.path.isfile(elastixParameterSetDatabasePath):
-      raise ValueError("Failed to open parameter set database: "+elastixParameterSetDatabasePath)
-    elastixParameterSetDatabaseXml = vtk.vtkXMLUtilities.ReadElementFromFile(elastixParameterSetDatabasePath)
-
-    # Create python list from XML for convenience
-    self.registrationPresets = []
-    for parameterSetIndex in range(elastixParameterSetDatabaseXml.GetNumberOfNestedElements()):
-      parameterSetXml = elastixParameterSetDatabaseXml.GetNestedElement(parameterSetIndex)
-      parameterFilesXml = parameterSetXml.FindNestedElementWithName('ParameterFiles')
-      parameterFiles = []
-      for parameterFileIndex in range(parameterFilesXml.GetNumberOfNestedElements()):
-        parameterFiles.append(parameterFilesXml.GetNestedElement(parameterFileIndex).GetAttribute('Name'))
-      parameterSetAttributes = \
-        [parameterSetXml.GetAttribute(attr) for attr in ['id', 'modality', 'content', 'description', 'publications']]
-      self.registrationPresets.append(parameterSetAttributes + [parameterFiles])
-    return self.registrationPresets
-
   def getRegistrationIndexByPresetId(self, presetId):
+    # TODO: Order cannot change Or need to update when changes were made
     for presetIndex, preset in enumerate(self.getRegistrationPresets()):
-      if preset[RegistrationPresets_Id] == presetId:
+      if preset.id == presetId:
         return presetIndex
     message = f"Registration preset with id '{presetId}' could not be found.  Falling back to default preset."
     logging.warning(message)
-    self.addLog(message)
     return 0
 
   def startElastix(self, cmdLineArguments):
@@ -653,7 +605,9 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
     presetId = parameterNode.GetParameter(self.REGISTRATION_PRESET_ID_PARAM)
     presetIdx = self.getRegistrationIndexByPresetId(presetId)
     registrationPreset = self.getRegistrationPresets()[presetIdx]
-    parameterFilenames = registrationPreset[RegistrationPresets_ParameterFilenames]
+
+    # TODO: need to find a way to retrieve parameter files from all kinds of databases
+    parameterFilenames = registrationPreset.parameterFiles
 
     self.registerVolumes(
       fixedVolumeNode=parameterNode.GetNodeReference(self.FIXED_VOLUME_REF),
@@ -674,8 +628,8 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
     try:
       if parameterFilenames is None:
         self.addLog(f"Using default registration preset with id '{self.DEFAULT_PRESET_ID}'")
-        defaultPresetIndex = self.getRegistrationIndexByPresetId(self.DEFAULT_PRESET_ID)
-        parameterFilenames = self.getRegistrationPresets()[defaultPresetIndex][RegistrationPresets_ParameterFilenames]
+        defaultPreset = self.getPresetByID(self.DEFAULT_PRESET_ID)
+        parameterFilenames = defaultPreset.parameterFiles
 
       self.cancelRequested = False
 
@@ -793,6 +747,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic):
   def _addParameterFiles(self, parameterFilenames):
     params = []
     for parameterFilename in parameterFilenames:
+      # TODO: copy to temp folder all data + parameter files
       parameterFilePath = os.path.abspath(os.path.join(self.databaseDir, parameterFilename))
       params += ['-p', parameterFilePath]
     return params

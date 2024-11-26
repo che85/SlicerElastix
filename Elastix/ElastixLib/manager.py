@@ -2,6 +2,7 @@ import os
 import qt
 import slicer
 from .constants import *
+from .database import ElastixDatabase, BuiltinElastixDatabase, UserElastixDataBase, InSceneElastixDatabase
 
 
 class PathLineEditDelegate(qt.QItemDelegate):
@@ -35,26 +36,134 @@ def makeAction(parent, text, slot, icon=None):
   return action
 
 
+from ElastixLib.database import Preset, InScenePreset
+
+
+class PresetManager:
+
+  #   def __init__(self):
+  #     self._databases = {}
+  #
+  #   def registerDatabase(self, role: DataBaseRole, database: ElastixDatabase):
+  #     assert isinstance(database, ElastixDatabase)
+
+  def __init__(self):
+    self.registrationPresets = None
+
+    self.builtinDatabase = BuiltinElastixDatabase()
+    self.inSceneDatabase = InSceneElastixDatabase()
+    self.userDatabase = UserElastixDataBase()
+
+    # TODO think about in scene?
+    # clone into scene
+    # create into scene
+    # option to persist into user database, but then get rid of scene database
+
+  def getBuiltinPresetsDir(self):
+    return self.builtinDatabase.getPresetsDir()
+
+  def getUserPresetsDir(self):
+    return self.userDatabase.getPresetsDir()
+
+  def getRegistrationPresets(self, force_refresh=False):
+    if self.registrationPresets and not force_refresh:
+      return self.registrationPresets
+
+    self.registrationPresets = []
+    for database in [self.builtinDatabase, self.inSceneDatabase, self.userDatabase]:
+      self.registrationPresets.extend(database.getRegistrationPresets(force_refresh))
+
+    return self.registrationPresets
+
+  def getPresetByID(self, presetId) -> Preset:
+    for preset in self.getRegistrationPresets():
+      if preset.id == presetId:
+        return preset
+    return None
+
+  def clonePreset(self, preset: Preset) -> InScenePreset:
+    # TODO: Implement
+    return None
+
+  def savePreset(self, preset: InScenePreset, keep=False):
+    # after saving preset, should the preset be removed from the scene or keep it
+    pass
+
+  def getPresetByID(self, presetID: str):
+    # find Preset
+    pass
+
+  def importPresets(self, directory):
+    # TODO: implement reading from a folder or zip file and search for xml files
+    pass
+
+  def exportPresets(self, presetIDs):
+    # TODO: exports a given number of presets and bundles corresponding custom folders into one compressed file
+    pass
+
+  def savePreset(self, preset: InScenePreset):
+    # create folder in db
+    # create xml
+    # copy txt files
+
+    # TODO: check if preset exists and raise error if so (maybe allowing overwriting?)
+
+    filenames = dialog.getParameterFiles()
+    if len(filenames) > 0:
+      from shutil import copyfile
+      import xml.etree.ElementTree as ET
+      presetDatabase = self.logic.databaseFile
+      xml = ET.parse(presetDatabase)
+      root = xml.getroot()
+      attributes = dialog.getMetaInformation()
+
+      presetElement = ET.SubElement(root, "ParameterSet", attributes)
+      parFilesElement = ET.SubElement(presetElement, "ParameterFiles")
+
+      # Copy parameter files to database directory
+      for file in filenames:
+        filename = os.path.basename(file)
+        newFilePath = os.path.join(folder, filename)
+        createFileCopy = True
+        discard = False
+        if os.path.exists(newFilePath):
+          import hashlib
+          # check if identical
+          if hashlib.md5(open(newFilePath, 'rb').read()).hexdigest() == hashlib.md5(open(file, 'rb').read()).hexdigest():
+            createFileCopy = False
+          else:  # not identical but same name
+            if self.overwriteParFile(filename):
+              createFileCopy = True
+            else:
+              discard = True
+        if createFileCopy:
+          copyfile(file, newFilePath)
+        if not discard:
+          ET.SubElement(parFilesElement, "File", {"Name": filename})
+
+      xml.write(presetDatabase)
+
+
 class PresetManagerDialog:
 
   @property
   def selectionModel(self):
     return self.ui.tableView.selectionModel()
 
-  def __init__(self, databaseFilePath: str):
-    from Elastix import ElastixLogic
-    self.elastixLogic = ElastixLogic()
-    self.elastixLogic.databaseFile = databaseFilePath
+  def __init__(self, manager: PresetManager):
+    # TODO: multiple database paths
+    # TODO in memory presets (inside scene)
+      # xml text node should reference txt files to make sure they are kept in same structure
+      # TODO: maybe even use subject hierarchy to recreate subfolder structure
+      # TODO: copy from existing preset to custom preset (similar to copy segments widget)
+
+    self.manager = manager
     self.setup()
 
   def setup(self):
     scriptedModulesPath = os.path.dirname(slicer.util.modulePath("Elastix"))
     self.widget = slicer.util.loadUI(os.path.join(scriptedModulesPath, 'Resources', "UI/PresetManager.ui"))
     self.ui = slicer.util.childWidgetVariables(self.widget)
-
-    self.ui.presetSelector.addItem('')
-    for preset in self.elastixLogic.getRegistrationPresets():
-      self.ui.presetSelector.addItem(f"{preset[RegistrationPresets_Modality]} ({preset[RegistrationPresets_Content]})")
 
     self.model = qt.QStandardItemModel(1, 1)
     self.ui.tableView.setModel(self.model)
@@ -88,10 +197,50 @@ class PresetManagerDialog:
                                               slot=lambda: self.onOpenFileAction(location=True),
                                               icon=qt.QStyle.SP_DirLinkIcon)
 
+    self.refreshRegistrationPresetList()
+
+    self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
+
+    # TODO: add connecting to handle if displayed files modified
+    # first clone it, then make it editable!
+
+  # def onDatabaseFileChanged(self, path):
+  #   if os.path.exists(path):
+  #     wasBlocked = self.ui.databasePathLineEdit.blockSignals(True)
+  #     self.ui.databasePathLineEdit.addCurrentPathToHistory()
+  #     self.ui.databasePathLineEdit.blockSignals(wasBlocked)
+  #     self.elastixLogic.databaseFile = path
+  #   else:
+  #     slicer.util.warningDisplay("Database does not exist")
+  #   self.refreshRegistrationPresetList()
+
+  def refreshRegistrationPresetList(self):
+    wasBlocked = self.ui.presetSelector.blockSignals(True)
+    self.ui.presetSelector.clear()
+    self.ui.presetSelector.addItem('')
+    for preset in self.manager.getRegistrationPresets():
+      self.ui.presetSelector.addItem(f"{preset.modality} ({preset.content})")
+    self.ui.presetSelector.blockSignals(wasBlocked)
+    self.onPresetSelected()
+    self.updateGUI()
+
   def fileForSelectionExists(self, modelIndex):
     item = self.model.item(modelIndex.row(), 0)
     if item:
       return os.path.exists(item.text())
+
+  def displayTextForIndex(self, modelIndex):
+    textWidget = self.ui.textWidget
+    crntTextNode = textWidget.mrmlTextNode()
+    if crntTextNode:
+      slicer.mrmlScene.RemoveNode(crntTextNode)
+    textWidget.setMRMLTextNode(None)
+    if not modelIndex:
+      return
+    item = self.model.item(modelIndex.row(), 0)
+    if item and self.fileForSelectionExists(modelIndex):
+      node = slicer.util.loadNodeFromFile(item.text())
+      textWidget.setMRMLTextNode(node)
 
   def onOpenFileAction(self, location=False):
     selectedRow = self.getSelectedRow()
@@ -173,38 +322,44 @@ class PresetManagerDialog:
       self.model.item(rowIdx, 0) is not None for rowIdx in range(self.model.rowCount()))
     validFormData = valiParameterFiles and self.ui.modalityBox.text != '' \
                     and self.ui.contentBox.text != '' and self.ui.descriptionBox.text != ''
-    idExists = self.ui.idBox.text in [preset[RegistrationPresets_Id] for preset in
-                                      self.elastixLogic.getRegistrationPresets()]
+    idExists = self.ui.idBox.text in [preset.id for preset in self.manager.getRegistrationPresets()]
     validId = self.ui.idBox.text != '' and not idExists
     self.ui.idBoxWarning.text = "*" if idExists else ''
     self.ui.buttonBox.button(qt.QDialogButtonBox.Save).setEnabled(validId and validFormData)
 
+    # TODO: maybe display something about missing parameter files. Otherwise it will fail at some point...
     self.ui.warningLabel.text = "*ParameterSet with given id already exists" if idExists else ''
     selectedRow = self.getSelectedRow()
+    self.displayTextForIndex(selectedRow)
     self.ui.toolButton.setEnabled(selectedRow is not None and self.fileForSelectionExists(selectedRow))
     self.ui.removeButton.setEnabled(selectedRow is not None)
     self.ui.moveUpButton.setEnabled(selectedRow and selectedRow.row() > 0)
     self.ui.moveDownButton.setEnabled(selectedRow and selectedRow.row() < self.model.rowCount() - 1)
 
   def onPresetSelected(self):
-    if self.ui.presetSelector.currentIndex == 0:
-      return
-    preset = self.elastixLogic.getRegistrationPresets()[self.ui.presetSelector.currentIndex - 1]
+    preset = None
+    if self.ui.presetSelector.currentIndex != 0:
+      preset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex - 1]
     self.autoPopulateFormFromPreset(preset)
 
-  def autoPopulateFormFromPreset(self, preset):
-    self.ui.idBox.text = preset[RegistrationPresets_Id]
-    self.ui.modalityBox.text = preset[RegistrationPresets_Modality]
-    self.ui.contentBox.text = preset[RegistrationPresets_Content]
-    self.ui.descriptionBox.text = preset[RegistrationPresets_Description]
-    self.ui.publicationsBox.plainText = preset[RegistrationPresets_Publications]
+  def autoPopulateFormFromPreset(self, preset:Preset=None):
+    self.ui.idBox.text = "" if not preset else preset.id
+    self.ui.modalityBox.text = "" if not preset else preset.modality
+    self.ui.contentBox.text = "" if not preset else preset.content
+    self.ui.descriptionBox.text = "" if not preset else preset.description
+    self.ui.publicationsBox.plainText = "" if not preset else preset.publications
 
     self.model.removeRows(0, self.model.rowCount())
-    for pIdx, paramFile in enumerate(preset[RegistrationPresets_ParameterFilenames]):
-      self.onAddButton()
-      modelIndex = self.model.index(pIdx, 0)
-      self.model.setData(modelIndex, os.path.join(self.elastixLogic.databaseDir, paramFile))
+    if preset:
+      # TODO: need to handle in scene presets
+      for pIdx, paramFile in enumerate(preset.parameterFiles):
+        self.onAddButton()
+        modelIndex = self.model.index(pIdx, 0)
+        # TODO: think about the full path which doesn't apply to in scene preset
+        self.model.setData(modelIndex, paramFile)
 
   def exec_(self):
     self.updateGUI()
-    return self.widget.exec_()
+    returnCode = self.widget.exec_()
+    # TODO: cleanup temporary loaded text nodes
+    return returnCode

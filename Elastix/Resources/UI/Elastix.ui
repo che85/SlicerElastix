@@ -395,7 +395,7 @@
       <string>Advanced</string>
      </property>
      <property name="collapsed">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
       <item row="0" column="0">
@@ -495,80 +495,45 @@
         </layout>
        </widget>
       </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QGroupBox" name="groupBox">
-        <property name="title">
-         <string>Registration presets:</string>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_12">
+        <property name="text">
+         <string>Built-in registration presets:</string>
         </property>
-        <layout class="QFormLayout" name="formLayout_7">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_12">
-           <property name="text">
-            <string>Database location:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QFrame" name="frame_4">
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <item>
-             <widget class="ctkPathLineEdit" name="databasePathLineEdit">
-              <property name="filters">
-               <set>ctkPathLineEdit::Files|ctkPathLineEdit::NoDot|ctkPathLineEdit::NoDotDot|ctkPathLineEdit::Readable</set>
-              </property>
-              <property name="nameFilters">
-               <stringlist>
-                <string>*.xml</string>
-               </stringlist>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="restoreDatabaseFolder">
-              <property name="maximumSize">
-               <size>
-                <width>24</width>
-                <height>24</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Reset to default database.</string>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item row="1" column="0" colspan="2">
-          <widget class="QPushButton" name="showDatabaseFolderButton">
-           <property name="toolTip">
-            <string>Open the folder where temporary files are stored.</string>
-           </property>
-           <property name="text">
-            <string>Open folder</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="3" column="1">
+       <widget class="QPushButton" name="showBuiltinPresetFolderButton">
+        <property name="toolTip">
+         <string>Open the folder where temporary files are stored.</string>
+        </property>
+        <property name="text">
+         <string>Open folder</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_15">
+        <property name="text">
+         <string>User registration presets:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QPushButton" name="showUserPresetFolderButton">
+        <property name="text">
+         <string>Open folder</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
        <widget class="QLabel" name="label_11">
         <property name="text">
          <string>Custom Elastix toolbox location:</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="ctkPathLineEdit" name="customElastixBinDirSelector">
         <property name="toolTip">
          <string>Set bin directory of an Elastix installation (where elastix executable is located). &quot;
@@ -579,14 +544,14 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QLabel" name="label_14">
         <property name="text">
          <string>Initial transform: </string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="7" column="1">
        <widget class="qMRMLNodeComboBox" name="initialTransformSelector">
         <property name="toolTip">
          <string>Start the registration from the selected initial transform.</string>
