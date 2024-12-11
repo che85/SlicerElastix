@@ -5,17 +5,7 @@ import abc
 import os
 import slicer
 from pathlib import Path
-
-
-from enum import Enum
-
-
-class DataBaseRole(Enum):
-  BUILT_IN = 1
-  USER = 2
-  IN_SCENE = 3
-
-
+from ElastixLib.preset import createPreset
 
 """
 
@@ -31,34 +21,8 @@ database could be
 """
 
 
-from dataclasses import dataclass
-from typing import List
-
-@dataclass
-class Preset:
-  id: str
-  modality: str
-  content: str
-  description: str
-  publications: str
-  parameterFiles: List[str]
-
-  def getParameterFiles(self):
-    return self.parameterFiles
-
-
-@dataclass
-class InScenePreset(Preset):
-  presetNode: slicer.vtkMRMLScriptedModuleNode
-
-  def getParameterFiles(self):
-    pass
-
-
-
-
 class ElastixDatabase(abc.ABC):
-  #
+
   # @staticmethod
   # def getRegistrationPresetsFromXML(elastixParameterSetDatabasePath):
   #   if not os.path.isfile(elastixParameterSetDatabasePath):
@@ -78,8 +42,7 @@ class ElastixDatabase(abc.ABC):
   #     registrationPresets.append(parameterSetAttributes + [parameterFiles])
   #   return registrationPresets
 
-  @staticmethod
-  def getRegistrationPresetsFromXML(elastixParameterSetDatabasePath):
+  def getRegistrationPresetsFromXML(self, elastixParameterSetDatabasePath):
     if not os.path.isfile(elastixParameterSetDatabasePath):
       raise ValueError("Failed to open parameter set database: " + elastixParameterSetDatabasePath)
     elastixParameterSetDatabaseXml = vtk.vtkXMLUtilities.ReadElementFromFile(elastixParameterSetDatabasePath)
@@ -98,9 +61,7 @@ class ElastixDatabase(abc.ABC):
       parameterSetAttributes = \
         [parameterSetXml.GetAttribute(attr) for attr in ['id', 'modality', 'content', 'description', 'publications']]
       registrationPresets.append(
-        Preset(
-          *parameterSetAttributes, parameterFiles=parameterFiles
-        )
+        createPreset(*parameterSetAttributes, parameterFiles=parameterFiles, inScene=False)
       )
     return registrationPresets
 
@@ -223,7 +184,7 @@ class UserElastixDataBase(ElastixDatabase):
 
 class InSceneElastixDatabase(ElastixDatabase):
   # TODO: needs to keep track of scene
-
+  # TODO: implement
 
   def _getRegistrationPresets(self):
     registrationPresets = []

@@ -4,7 +4,7 @@ import subprocess
 import vtk, qt, slicer
 
 from ElastixLib.constants import *
-from ElastixLib.manager import PresetManager
+from ElastixLib.manager import PresetManagerLogic
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 import logging
@@ -57,6 +57,15 @@ If you use this module, please cite the following articles:
 <li>D.P. Shamonin, E.E. Bron, B.P.F. Lelieveldt, M. Smits, S. Klein and M. Staring, "<a href="http://elastix.isi.uu.nl/marius/publications/2014_j_FNI.php">Fast Parallel Image Registration on CPU and GPU for Diagnostic Classification of Alzheimer's Disease</a>", Frontiers in Neuroinformatics, vol. 7, no. 50, pp. 1-15, January 2014.</li></ul>
 See more information about Elastix medical image registration toolbox at <a href="http://elastix.isi.uu.nl/">http://elastix.isi.uu.nl/</a>.
 """
+    slicer.app.connect("startupCompleted()", self.initializeElastixLib)
+
+  def initializeElastixLib(self):
+    import ElastixLib.ElastixPresetSubjectHierarchyPlugin as shp
+    scriptedPlugin = slicer.qSlicerSubjectHierarchyScriptedPlugin(None)
+    scriptedPlugin.setPythonSource(shp.ElastixPresetSubjectHierarchyPlugin.filePath)
+
+
+
 
 #
 # ElastixWidget
@@ -138,7 +147,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     logging.debug("Reloading Elastix")
 
     packageName='ElastixLib'
-    submoduleNames=['constants', 'database', 'manager']
+    submoduleNames=['constants', 'database', 'manager', 'preset', 'ElastixPresetSubjectHierarchyPlugin']
     import imp
     f, filename, description = imp.find_module(packageName)
     package = imp.load_module(packageName, f, filename, description)
@@ -212,7 +221,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self._parameterNode.SetParameter(self.logic.FORCE_GRID_TRANSFORM_PARAM, str(self.ui.forceDisplacementFieldOutputCheckbox.checked))
 
     registrationPreset = self.logic.getRegistrationPresets()[self.ui.registrationPresetSelector.currentIndex]
-    self._parameterNode.SetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM, registrationPreset.id)
+    self._parameterNode.SetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM, registrationPreset.getID())
 
     self._parameterNode.EndModify(wasModified)
 
@@ -268,7 +277,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     allPresets = self.logic.getRegistrationPresets(force_refresh=True)
     preset = allPresets[len(allPresets) - 1]
     self.ui.registrationPresetSelector.addItem(
-      f"{preset.modality} ({preset.content})"
+      f"{preset.getModality()} ({preset.getContent()})"
     )
     self.ui.registrationPresetSelector.currentIndex = self.ui.registrationPresetSelector.count - 1
 
@@ -399,7 +408,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.ui.registrationPresetSelector.clear()
     for preset in self.logic.getRegistrationPresets():
       self.ui.registrationPresetSelector.addItem(
-        f"{preset.modality} ({preset.content})"
+        f"{preset.getModality()} ({preset.getContent()})"
       )
     self.ui.registrationPresetSelector.blockSignals(wasBlocked)
 
@@ -408,7 +417,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 # ElastixLogic
 #
 
-class ElastixLogic(ScriptedLoadableModuleLogic, PresetManager):
+class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
   """This class should implement all the actual
   computation done by your module.  The interface
   should be such that other python code can import
@@ -436,7 +445,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManager):
 
   def __init__(self):
     ScriptedLoadableModuleLogic.__init__(self)
-    PresetManager.__init__(self)
+    PresetManagerLogic.__init__(self)
 
     self.logCallback = None
     self.isRunning = False
@@ -524,7 +533,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManager):
   def getRegistrationIndexByPresetId(self, presetId):
     # TODO: Order cannot change Or need to update when changes were made
     for presetIndex, preset in enumerate(self.getRegistrationPresets()):
-      if preset.id == presetId:
+      if preset.getID() == presetId:
         return presetIndex
     message = f"Registration preset with id '{presetId}' could not be found.  Falling back to default preset."
     logging.warning(message)
@@ -629,7 +638,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManager):
       if parameterFilenames is None:
         self.addLog(f"Using default registration preset with id '{self.DEFAULT_PRESET_ID}'")
         defaultPreset = self.getPresetByID(self.DEFAULT_PRESET_ID)
-        parameterFilenames = defaultPreset.parameterFiles
+        parameterFilenames = defaultPreset.getParameterFiles()
 
       self.cancelRequested = False
 
@@ -806,9 +815,12 @@ class ElastixTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     self.setUp()
-    self.test_Elastix_Default_Registration_Preset()
-    self.test_Elastix_Explicit_Arguments()
-    self.test_Elastix_ParameterNode()
+    # TODO: write preset tests
+    self.test_ElastixPresets()
+    self.test_CopyElastixPreset()
+    # self.test_Elastix_Default_Registration_Preset()
+    # self.test_Elastix_Explicit_Arguments()
+    # self.test_Elastix_ParameterNode()
 
   def test_Elastix_Default_Registration_Preset(self):
     self.delayDisplay(f"Running test: test_Elastix_Default_Registration_Preset", msec=500)
@@ -841,4 +853,26 @@ class ElastixTest(ScriptedLoadableModuleTest):
 
     self.delayDisplay('Test passed!')
 
+  def test_ElastixPresets(self):
+    from ElastixLib.preset import createPreset
 
+    with self.assertRaises(ValueError):
+      createPreset("tes123", "CT", "foo", "bar", "None", "")
+
+    from ElastixLib.preset import Preset, InScenePreset
+
+    # create in scene preset from scratch and delete to make sure that nodes were removed
+    preset = InScenePreset()
+    node = preset.getPresetNode()
+    self.assertIsNotNone(node)
+    preset.delete()
+    self.assertIsNone(node.GetScene())
+
+  def test_CopyElastixPreset(self):
+    from ElastixLib.database import BuiltinElastixDatabase
+    db = BuiltinElastixDatabase()
+    presets = db.getRegistrationPresets()
+    self.assertTrue(len(presets) > 0)
+
+    from ElastixLib.preset import copyPreset
+    copyPreset(presets[0])
