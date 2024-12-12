@@ -170,20 +170,25 @@ class InScenePreset(PresetBase):
   def getPresetNode(self) -> slicer.vtkMRMLScriptedModuleNode:
     return self._presetNode
 
+  def _updateName(self):
+    self._presetNode.SetName(f"{self.getModality()} ({self.getContent()})")
+
   def setID(self, value):
-    self._presetNode.SetName(str(value))
+    self._presetNode.SetAttribute("id", str(value))
 
   def getID(self):
-    return self._presetNode.GetName()
+    return self._presetNode.GetAttribute("id")
 
   def setModality(self, value):
     self._presetNode.SetAttribute("modality", str(value))
+    self._updateName()
 
   def getModality(self):
     return self._presetNode.GetAttribute("modality")
 
   def setContent(self, value: str):
     self._presetNode.SetAttribute("content", str(value))
+    self._updateName()
 
   def getContent(self) -> str:
     return self._presetNode.GetAttribute("content")
@@ -291,8 +296,7 @@ def getInScenePreset(presetNode: slicer.vtkMRMLScriptedModuleNode):
   try:
     preset = InScenePresets[presetNode]
   except KeyError:
-    preset = InScenePreset()
-    preset.setPresetNode(presetNode)
+    preset = InScenePreset(presetNode)
 
     InScenePresets[presetNode] = preset
   return preset
@@ -319,6 +323,7 @@ def copyPreset(preset: Preset) -> InScenePreset:
   import random
   import base64
   presetCopy.setID(f"{preset.getID()}-{base64.urlsafe_b64encode(random.randbytes(6)).decode()}")
+  presetCopy.setModality(preset.getModality())
   presetCopy.setContent(preset.getContent())
   presetCopy.setDescription(preset.getDescription())
   presetCopy.setPublications(preset.getPublications())

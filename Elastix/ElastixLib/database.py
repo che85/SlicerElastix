@@ -183,10 +183,16 @@ class UserElastixDataBase(ElastixDatabase):
 
 
 class InSceneElastixDatabase(ElastixDatabase):
-  # TODO: needs to keep track of scene
-  # TODO: implement
 
   def _getRegistrationPresets(self):
     registrationPresets = []
-    # TODO: scan scene
+
+    nodes = filter(lambda node: node.GetAttribute('Type') == 'ElastixPreset',
+           slicer.util.getNodesByClass('vtkMRMLScriptedModuleNode'))
+
+    from ElastixLib.preset import getInScenePreset
+    for node in nodes:
+      registrationPresets.append(getInScenePreset(node))
+
+
     return registrationPresets

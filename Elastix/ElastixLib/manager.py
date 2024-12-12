@@ -46,7 +46,6 @@ class PresetManagerLogic:
     self.userDatabase = UserElastixDataBase()
 
     # TODO think about in scene?
-    # clone into scene
     # create into scene
     # option to persist into user database, but then get rid of scene database
 
@@ -61,7 +60,7 @@ class PresetManagerLogic:
       return self.registrationPresets
 
     self.registrationPresets = []
-    for database in [self.builtinDatabase, self.inSceneDatabase, self.userDatabase]:
+    for database in [self.builtinDatabase, self.userDatabase, self.inSceneDatabase]:
       self.registrationPresets.extend(database.getRegistrationPresets(force_refresh))
 
     return self.registrationPresets
@@ -163,6 +162,7 @@ class PresetManagerDialog:
     self.model.removeRows(0, self.model.rowCount())
 
     # configure buttons
+    self.ui.clonePresetButton.clicked.connect(self.onClonePresetButton)
     self.ui.addButton.clicked.connect(self.onAddButton)
     self.ui.removeButton.clicked.connect(self.onRemoveButton)
 
@@ -200,7 +200,7 @@ class PresetManagerDialog:
     wasBlocked = self.ui.presetSelector.blockSignals(True)
     self.ui.presetSelector.clear()
     self.ui.presetSelector.addItem('')
-    for preset in self.manager.getRegistrationPresets():
+    for preset in self.manager.getRegistrationPresets(force_refresh=True):
       self.ui.presetSelector.addItem(f"{preset.getModality()} ({preset.getContent()})")
     self.ui.presetSelector.blockSignals(wasBlocked)
     self.onPresetSelected()
@@ -238,6 +238,13 @@ class PresetManagerDialog:
         os.startfile(filepath)
       else:  # linux variants
         subprocess.call(('xdg-open', filepath))
+
+  def onClonePresetButton(self):
+    if self._currentPreset is not None:
+      from ElastixLib.preset import copyPreset
+      copyPreset(self._currentPreset)
+      self.refreshRegistrationPresetList()
+      self.selectLastPreset()
 
   def onAddButton(self):
     # TODO: need to make sure that when inScene, can add new node but that should be in scene and not a local file
@@ -316,11 +323,15 @@ class PresetManagerDialog:
     # self.ui.warningLabel.text = "*ParameterSet with given id already exists" if isWritable(preset)idExists else ''
     self.enableToolButtons()
 
+  def selectLastPreset(self):
+    self.ui.presetSelector.currentIndex = self.ui.presetSelector.count - 1
+
   def onPresetSelected(self):
     self._currentPreset = None
-    if self.getSelectedRow() != 0:
+    if self.ui.presetSelector.currentIndex > 0:
       self._currentPreset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex - 1]
     self.autoPopulateForm()
+    self.updateGUI()
 
   def autoPopulateForm(self):
     preset = self._currentPreset

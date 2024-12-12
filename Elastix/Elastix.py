@@ -817,7 +817,7 @@ class ElastixTest(ScriptedLoadableModuleTest):
     self.setUp()
     # TODO: write preset tests
     self.test_ElastixPresets()
-    self.test_CopyElastixPreset()
+    self.test_CopyAndDeleteElastixPreset()
     # self.test_Elastix_Default_Registration_Preset()
     # self.test_Elastix_Explicit_Arguments()
     # self.test_Elastix_ParameterNode()
@@ -868,11 +868,13 @@ class ElastixTest(ScriptedLoadableModuleTest):
     preset.delete()
     self.assertIsNone(node.GetScene())
 
-  def test_CopyElastixPreset(self):
+  def test_CopyAndDeleteElastixPreset(self):
     from ElastixLib.database import BuiltinElastixDatabase
     db = BuiltinElastixDatabase()
     presets = db.getRegistrationPresets()
     self.assertTrue(len(presets) > 0)
 
     from ElastixLib.preset import copyPreset
-    copyPreset(presets[0])
+    preset = copyPreset(presets[0])
+
+    preset.delete()
