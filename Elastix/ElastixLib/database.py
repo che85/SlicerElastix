@@ -1,8 +1,13 @@
+import logging
+
 import qt
 import vtk
 
 import abc
 import os
+
+from typing import Callable
+
 import slicer
 from pathlib import Path
 from ElastixLib.preset import createPreset
@@ -22,6 +27,14 @@ database could be
 
 
 class ElastixDatabase(abc.ABC):
+
+  @property
+  def logCallback(self):
+    return self._logCallback
+
+  @logCallback.setter
+  def logCallback(self, cb: Callable = None):
+    self._logCallback = cb
 
   # @staticmethod
   # def getRegistrationPresetsFromXML(elastixParameterSetDatabasePath):
@@ -60,13 +73,21 @@ class ElastixDatabase(abc.ABC):
         )
       parameterSetAttributes = \
         [parameterSetXml.GetAttribute(attr) for attr in ['id', 'modality', 'content', 'description', 'publications']]
-      registrationPresets.append(
-        createPreset(*parameterSetAttributes, parameterFiles=parameterFiles, inScene=False)
-      )
+      try:
+        registrationPresets.append(
+          createPreset(*parameterSetAttributes, parameterFiles=parameterFiles)
+        )
+      except FileNotFoundError as exc:
+        msg = f"Cannot load preset. Loading failed with error: {exc}"
+        logging.error(msg)
+        if self.logCallback:
+          self.logCallback(msg)
+        continue
     return registrationPresets
 
 
   def __init__(self):
+    self._logCallback = None
     self.registrationPresets = None
 
   def getRegistrationPresets(self, force_refresh=False):
@@ -188,11 +209,10 @@ class InSceneElastixDatabase(ElastixDatabase):
     registrationPresets = []
 
     nodes = filter(lambda node: node.GetAttribute('Type') == 'ElastixPreset',
-           slicer.util.getNodesByClass('vtkMRMLScriptedModuleNode'))
+           slicer.util.getNodesByClass('vtkMRMLTextNode'))
 
     from ElastixLib.preset import getInScenePreset
     for node in nodes:
       registrationPresets.append(getInScenePreset(node))
-
 
     return registrationPresets

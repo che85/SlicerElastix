@@ -1,155 +1,123 @@
-import os.path
+import json
+from pathlib import Path
+
 
 import slicer
-from typing import List, Union
+from typing import List, Union, Dict
 
 # for caching instead of persistently creating new preset for each node in the scene
 InScenePresets = {}
 
-"""
 
-preset base provides an interface that needs to be implemented for in storage presets and in scene presets
-"""
-
-# search current scene for in scene presets
-
-from abc import ABC, abstractmethod
-
-class PresetBase(ABC):
-
-  @abstractmethod
-  def setID(self, value: str):
-    pass
-
-  @abstractmethod
-  def getID(self) -> str:
-    pass
-
-  @abstractmethod
-  def setModality(self, value: str):
-    pass
-
-  @abstractmethod
-  def getModality(self):
-    pass
-
-  @abstractmethod
-  def setContent(self, value: str):
-    pass
-
-  @abstractmethod
-  def getContent(self) -> str:
-    pass
-
-  @abstractmethod
-  def setDescription(self, value: str):
-    pass
-
-  @abstractmethod
-  def getDescription(self) -> str:
-    pass
-
-  @abstractmethod
-  def setPublications(self, value: str):
-    pass
-
-  @abstractmethod
-  def getPublications(self) -> str:
-    pass
-
-  @abstractmethod
-  def setParameterFiles(self, value: List):
-    pass
-
-  @abstractmethod
-  def getParameterFiles(self) -> List:
-    pass
-
-  @abstractmethod
-  def addParameterFile(self, value):
-    pass
-
-
-class Preset(PresetBase):
-
-  def setID(self, value):
-    self._id = value
-
-  def getID(self):
-    return self._id
-
-  def setModality(self, value: str):
-    self._modality = value
-
-  def getModality(self):
-    return self._modality
-
-  def setContent(self, value: str):
-    self._content = value
-
-  def getContent(self) -> str:
-    return self._content
-
-  def setDescription(self, value: str):
-    self._description = value
-
-  def getDescription(self) -> str:
-    return self._description
-
-  def setPublications(self, value: str):
-    self._publications = value
-
-  def getPublications(self) -> str:
-    return self._publications
-
-  def setParameterFiles(self, value: List):
-    if type(value) is str:
-      raise ValueError("Parameter files parameter needs to be a list of file paths")
-    self._parameterFiles = value
-
-  def getParameterFiles(self) -> List:
-    return self._parameterFiles
-
-  def addParameterFile(self, value):
-    self._parameterFiles.append(value)
+class Preset:
 
   def __init__(self):
-    self._id = ""
-    self._modality = ""
-    self._description = ""
-    self._content = ""
-    self._publications = ""
-    self._parameterFiles = []
+    self._data = {}
+
+  def getName(self):
+    return f"{self.getModality()} ({self.getContent()})"
+
+  def getID(self):
+    return self._getDictAttribute("id")
+
+  def setID(self, value: str):
+    self._data["id"] = value
+
+  def getModality(self):
+    return self._getDictAttribute("modality")
+
+  def setModality(self, value: str):
+    self._data["modality"] = value
+
+  def getContent(self) -> str:
+    return self._getDictAttribute("content")
+
+  def setContent(self, value: str):
+    self._data["content"] = value
+
+  def getDescription(self) -> str:
+    return self._getDictAttribute("description")
+
+  def setDescription(self, value: str):
+    self._data["description"] = value
+
+  def getPublications(self) -> str:
+    return self._getDictAttribute("publications")
+
+  def setPublications(self, value: str):
+    self._data["publications"] = value
+
+  def setParameters(self, values: List[Dict[str, str]]):
+    # TODO: check for proper types?
+    self._data["parameter_files"] = values
+
+  def getParameters(self):
+    return self._getDictAttribute("parameter_files", [])
+
+  def getParameterSectionNames(self) -> List:
+    return [pf["name"] for pf in self._data["parameter_files"]]
+
+  def addParameterSection(self, name, content: Union[str]):
+    parameters = self.getParameters()
+    parameters.append(
+      {
+        "name": name,
+        "content": content
+      }
+    )
+
+  def hasParameterSection(self, name):
+    parameters = self.getParameters()
+    for param in parameters:
+      if param["name"] == name:
+        return True
+    return False
+
+  def removeParameterSection(self, idx):
+    parameters = self.getParameters()
+    parameters.pop(idx)
+
+  def getParameterSectionContent(self, name):
+    parameters = self.getParameters()
+    for param in parameters:
+      if param["name"] == name:
+        return param["content"]
+    return ""
+
+  def _getDictAttribute(self, key, default=""):
+    try:
+      return self._data[key]
+    except KeyError:
+      self._data[key] = default
+      return self._data[key]
+
+  def toJSON(self):
+    return json.dumps(self._data, indent=2)
 
 
-class InScenePreset(PresetBase):
+class InScenePreset(Preset):
 
   @staticmethod
-  def createPresetNode():
-    presetNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScriptedModuleNode")
+  def createTextNode():
+    presetNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
     presetNode.SetAttribute("Type", "ElastixPreset")
     return presetNode
 
+  def __init__(self, presetNode: slicer.vtkMRMLTextNode = None):
+    super().__init__()
 
-
-  def __init__(self, presetNode: slicer.vtkMRMLScriptedModuleNode = None):
     """ Creates new scripted node if none was defined
 
     :param presetNode:
     """
-    self._presetNode = None
+    if not presetNode:
+      presetNode = self.createTextNode()
     self.setPresetNode(presetNode)
-    if not self._presetNode:
-      node = self.createPresetNode()
-      self.setPresetNode(node)
 
   def delete(self):
-    nodes = self.getParameterFiles()
-    nodes.append(self._presetNode)
-    for node in nodes:
-      slicer.mrmlScene.RemoveNode(node)
+    slicer.mrmlScene.RemoveNode(self._presetNode)
 
-  def setPresetNode(self, node: slicer.vtkMRMLScriptedModuleNode):
+  def setPresetNode(self, node: slicer.vtkMRMLTextNode):
     if node and not node.GetAttribute("Type") == "ElastixPreset":
       raise AttributeError(f"Provided node {node.GetID()} needs to be of type 'ElastixPreset'")
 
@@ -162,134 +130,54 @@ class InScenePreset(PresetBase):
         shNode.RequestOwnerPluginSearch(self._presetNode)
         shNode.SetItemAttribute(shNode.GetItemByDataNode(self._presetNode), "Type", "ElastixPreset")
 
-  def moveNodeToPresetFolder(self, node):
-    shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
-    nodeItemId = shNode.GetItemByDataNode(self._presetNode)
-    shNode.SetItemParent(shNode.GetItemByDataNode(node), nodeItemId)
+    self._readFromTextNode()
 
-  def getPresetNode(self) -> slicer.vtkMRMLScriptedModuleNode:
+  def getPresetNode(self) -> slicer.vtkMRMLTextNode:
     return self._presetNode
 
-  def _updateName(self):
-    self._presetNode.SetName(f"{self.getModality()} ({self.getContent()})")
+  def _updateTextNode(self):
+    self._presetNode.SetText(
+      json.dumps(self._data, indent=2)
+    )
+    self._presetNode.SetName(self.getName())
+
+  def _readFromTextNode(self):
+    text = self._presetNode.GetText()
+    self._data = json.loads(text) if text else {}
 
   def setID(self, value):
-    self._presetNode.SetAttribute("id", str(value))
-
-  def getID(self):
-    return self._presetNode.GetAttribute("id")
+    super().setID(value)
+    self._updateTextNode()
 
   def setModality(self, value):
-    self._presetNode.SetAttribute("modality", str(value))
-    self._updateName()
-
-  def getModality(self):
-    return self._presetNode.GetAttribute("modality")
+    super().setModality(value)
+    self._updateTextNode()
 
   def setContent(self, value: str):
-    self._presetNode.SetAttribute("content", str(value))
-    self._updateName()
-
-  def getContent(self) -> str:
-    return self._presetNode.GetAttribute("content")
+    super().setContent(value)
+    self._updateTextNode()
 
   def setDescription(self, value: str):
-    self._presetNode.SetAttribute("description", str(value))
-
-  def getDescription(self) -> str:
-    return self._presetNode.GetAttribute("description")
+    super().setDescription(value)
+    self._updateTextNode()
 
   def setPublications(self, value: str):
-    self._presetNode.SetAttribute("publications", str(value))
+    super().setPublications(value)
+    self._updateTextNode()
 
-  def getPublications(self) -> str:
-    return self._presetNode.GetAttribute("publications")
+  def setParameters(self, values: List[Dict[str, str]]):
+    super().setParameters(values)
+    self._updateTextNode()
 
-  def setParameterFiles(self, value: List[slicer.vtkMRMLTextNode]):
-    if type(value) is str:
-      raise ValueError("Parameter files parameter needs to be a list of either file paths or vtkMRMLTextNodes")
-    # accepts a list of nodes or ids
-    for val in value:
-      self.addParameterFile(val)
+  def addParameterSection(self, name, content: Union[str]):
+    super().addParameterSection(name, content)
+    self._updateTextNode()
 
-  def getParameterFiles(self) -> List:
-    referenceRole = "parameterFiles"
-    return [self._presetNode.GetNthNodeReference(referenceRole, idx)
-            for idx in range(self._presetNode.GetNumberOfNodeReferences(referenceRole))]
+  def removeParameterSection(self, idx):
+    super().removeParameterSection(idx)
+    self._updateTextNode()
 
-  def addParameterFile(self, value: Union[str, slicer.vtkMRMLTextNode]):
-    # check if file path and load into text file if so
-    from pathlib import Path
-    if os.path.exists(value) or Path(value).exists():  # is likely a path
-      node = slicer.util.loadNodeFromFile(str(value))
-    elif type(value) is str and value.startswith("vtkMRML"): # is mrml id
-      node = slicer.util.getNode(value)
-    else:  # has to be a mrmlNode
-      node = cloneMRMLNode(value)
-    referenceRole = "parameterFiles"
-    nNodes = self._presetNode.GetNumberOfNodeReferences(referenceRole) + 1
-    self._presetNode.SetNthNodeReferenceID(referenceRole, nNodes, node.GetID())
-    self.moveNodeToPresetFolder(node)
-
-  #
-  # def addParameterFile(self):
-  #   pass
-
-  #
-  # @property
-  # def modality(self):
-  #   return self._modality
-  #
-  # @property
-  # def content(self):
-  #   return self._content
-  #
-  # @property
-  # def description(self):
-  #   return self._description
-  #
-  # @property
-  # def publications(self):
-  #   return self._publications
-  #
-  # @property
-  # def role(self):
-  #   return self._role
-  #
-  # @property
-  # def parameterFiles(self):
-  #   return self._parameterFiles
-  #
-  # def addParameterFile(self, parameterFile):
-  #   # file path or vtkMRMLTextNode depending on (if scripted module available or not)
-  #
-  #   if self.scriptedNode:
-  #     referenceRole = 'parameterFiles'
-  #     nNodes = self.scriptedNode.GetNumberOfNodeReferences(referenceRole) + 1
-  #     self.scriptedNode.SetNthNodeReferenceID(referenceRole, nNodes, parameterFile.GetID())
-  #   else:
-  #     self._parameterFiles.append(parameterFile)
-  #
-  # def toScene(self):
-  #   # could create scripted node and move all the info there
-  #   pass
-  #
-  # def __init__(self, id:str, modality:str, content:str, description:str, publications:str, role:DatabaseRole, parameterFiles: List[str], scriptedNode: slicer.vtkMRMLScriptedModuleNode=None):
-  #   self.scriptedNode = scriptedNode
-  #
-  #   # TODO: what if scripted node already has data ???
-  #
-  #   self.id = id
-  #   self.modality = modality
-  #   self.content = content
-  #   self.description = description
-  #   self.publications = publications
-  #   self.role = role
-  #   self.parameterFiles = parameterFiles
-  #
-
-
-def getInScenePreset(presetNode: slicer.vtkMRMLScriptedModuleNode):
+def getInScenePreset(presetNode: slicer.vtkMRMLTextNode):
   if presetNode is None:
     return None
 
@@ -302,14 +190,22 @@ def getInScenePreset(presetNode: slicer.vtkMRMLScriptedModuleNode):
   return preset
 
 
-def createPreset(id:str, modality:str, content:str, description:str, publications:str, parameterFiles: List[str] = None, inScene: bool = False):
-  preset = InScenePreset() if inScene else Preset()
+def createPreset(id:str, modality:str, content:str, description:str, publications:str, parameterFiles: List[str] = None):
+  preset = Preset()
   preset.setID(id)
   preset.setModality(modality)
   preset.setContent(content)
   preset.setDescription(description)
   preset.setPublications(publications)
-  preset.setParameterFiles(parameterFiles)
+
+  for f in parameterFiles:
+    with open(f, 'r') as file:
+      file_content = file.read()
+      preset.addParameterSection(
+        Path(f).name,
+        file_content
+      )
+
   return preset
 
 
@@ -327,17 +223,12 @@ def copyPreset(preset: Preset) -> InScenePreset:
   presetCopy.setContent(preset.getContent())
   presetCopy.setDescription(preset.getDescription())
   presetCopy.setPublications(preset.getPublications())
-  presetCopy.setParameterFiles(preset.getParameterFiles())
+
+  import copy
+  presetCopy.setParameters(copy.deepcopy(preset.getParameters()))
 
   return presetCopy
 
 
-def isWritable(preset: PresetBase):
+def isWritable(preset: Preset):
   return isinstance(preset, InScenePreset)
-
-
-def cloneMRMLNode(node):
-  shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
-  itemIDToClone = shNode.GetItemByDataNode(node)
-  clonedItemID = slicer.modules.subjecthierarchy.logic().CloneSubjectHierarchyItem(shNode, itemIDToClone)
-  return shNode.GetItemDataNode(clonedItemID)

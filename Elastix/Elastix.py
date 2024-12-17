@@ -276,9 +276,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # refresh preset list and select new preset
     allPresets = self.logic.getRegistrationPresets(force_refresh=True)
     preset = allPresets[len(allPresets) - 1]
-    self.ui.registrationPresetSelector.addItem(
-      f"{preset.getModality()} ({preset.getContent()})"
-    )
+    self.ui.registrationPresetSelector.addItem(preset.getName())
     self.ui.registrationPresetSelector.currentIndex = self.ui.registrationPresetSelector.count - 1
 
   def _showFolder(self, path):
@@ -407,9 +405,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     wasBlocked = self.ui.registrationPresetSelector.blockSignals(True)
     self.ui.registrationPresetSelector.clear()
     for preset in self.logic.getRegistrationPresets():
-      self.ui.registrationPresetSelector.addItem(
-        f"{preset.getModality()} ({preset.getContent()})"
-      )
+      self.ui.registrationPresetSelector.addItem(preset.getName())
     self.ui.registrationPresetSelector.blockSignals(wasBlocked)
 
 
@@ -447,7 +443,6 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
     ScriptedLoadableModuleLogic.__init__(self)
     PresetManagerLogic.__init__(self)
 
-    self.logCallback = None
     self.isRunning = False
     self.cancelRequested = False
     self.deleteTemporaryFiles = True
@@ -616,6 +611,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
     registrationPreset = self.getRegistrationPresets()[presetIdx]
 
     # TODO: need to find a way to retrieve parameter files from all kinds of databases
+    # TODO: temporarily store txt files for registration
     parameterFilenames = registrationPreset.parameterFiles
 
     self.registerVolumes(
