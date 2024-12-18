@@ -91,10 +91,6 @@ class ElastixDatabase(abc.ABC):
     self.registrationPresets = None
 
   def getRegistrationPresets(self, force_refresh=False):
-    # TODO: need to check scene for any loaded presets?
-    # TODO: when keeping in the scene, probably a good idea to have a parameter node or such that references text nodes?
-    #       or could also think about a folder / scripted node
-
     if self.registrationPresets and not force_refresh:
       return self.registrationPresets
 
@@ -208,7 +204,7 @@ class InSceneElastixDatabase(ElastixDatabase):
   def _getRegistrationPresets(self):
     registrationPresets = []
 
-    nodes = filter(lambda node: node.GetAttribute('Type') == 'ElastixPreset',
+    nodes = filter(lambda n: n.GetAttribute('Type') == 'ElastixPreset',
            slicer.util.getNodesByClass('vtkMRMLTextNode'))
 
     from ElastixLib.preset import getInScenePreset

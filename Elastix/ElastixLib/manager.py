@@ -84,17 +84,21 @@ class PresetManagerLogic:
     # find Preset
     pass
 
-  def importPresets(self, directory):
+  def importUserDatabase(self, f: str):
     # TODO: implement reading from a folder or zip file and search for xml files
+    # TODO: database from unzipped file and then copy presets into scene
     pass
 
-  def exportPreset(self, preset: InScenePreset):
-    # persisting in scene preset to user/custom database
-    # TODO: handle situation where id already in use
-    # write txt node to txt file (need to have unique name)
+  def exportUserDatabase(self):
+    # zip whole database and download
     pass
 
   def savePreset(self, preset: InScenePreset):
+    if not isinstance(preset, InScenePreset):
+      raise TypeError(f"Only presets of type {InScenePreset.__class__.__name__} can be persisted to the UserDatabase")
+
+    # TODO: add button to save InScenePreset to user database
+    # TODO: ask user if they want to keep it
     # create folder in db
     # create xml
     # copy txt files
@@ -164,10 +168,6 @@ class PresetManagerDialog:
     self.ui.moveDownButton.clicked.connect(self.onMoveDownButton)
     self.ui.buttonBox.clicked.connect(self.onResetButton)
 
-    # self.model.connect('rowsInserted(QModelIndex,int,int)', self.updateGUI)
-    # self.model.connect('rowsRemoved(QModelIndex,int,int)', self.updateGUI)
-    # self.model.connect('dataChanged(QModelIndex,QModelIndex)', self.updateGUI)
-
     self.ui.idBox.textChanged.connect(self.updateGUI)
     self.ui.modalityBox.textChanged.connect(self.updateGUI)
     self.ui.contentBox.textChanged.connect(self.updateGUI)
@@ -175,9 +175,10 @@ class PresetManagerDialog:
 
     self.selectionModel.selectionChanged.connect(self.updateGUI)
 
-    self.ui.presetSelector.connect("activated(int)", self.onPresetSelected)
+    self.ui.presetSelector.currentIndexChanged.connect(self.onPresetSelected)
 
-    # TODO: needed? builtin and user presets are not modifyable unless cloned first and those will be in scene then
+    self.ui.textWidget.editingChanged.connect(self.onEditingChanged)
+
     # self._openFileAction = makeAction(self.ui.toolButton, text="Open Parameter File", slot=self.onOpenFileAction,
     #                                   icon=qt.QStyle.SP_FileLinkIcon)
     # self._openFileLocationAction = makeAction(self.ui.toolButton, text="Open Parameter File Location",
@@ -185,7 +186,22 @@ class PresetManagerDialog:
     #                                           icon=qt.QStyle.SP_DirLinkIcon)
 
     self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
-    # TODO: add connecting to handle if displayed files modified
+
+  def onEditingChanged(self, active):
+    textNode = self.ui.textWidget.mrmlTextNode()
+    if active is True and textNode is not None:
+      import vtk
+      self._textNodeObserver = textNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.onTextChanged)
+
+    if not active and self._textNodeObserver is not None:
+      self._textNodeObserver = textNode.RemoveObserver(self._textNodeObserver)
+
+  def onTextChanged(self, unused1=None, unused2=None):
+    rowIndex = self.getSelectedRow()
+    row = rowIndex.row()
+    preset = self._currentPreset
+    textNode = self.ui.textWidget.mrmlTextNode()
+    preset.setParameterSectionContentByIdx(row, textNode.GetText())
 
   def refreshRegistrationPresetList(self):
     wasBlocked = self.ui.presetSelector.blockSignals(True)
@@ -194,11 +210,9 @@ class PresetManagerDialog:
     for preset in self.manager.getRegistrationPresets(force_refresh=True):
       self.ui.presetSelector.addItem(preset.getName())
     self.ui.presetSelector.blockSignals(wasBlocked)
-    self.onPresetSelected()
     self.updateGUI()
 
   def displayTextForIndex(self):
-    # TODO: might caused problems since it's called frequently
     rowIndex = self.getSelectedRow()
     textWidget = self.ui.textWidget
     textNode = textWidget.mrmlTextNode()
@@ -207,11 +221,9 @@ class PresetManagerDialog:
       return
     preset = self._currentPreset
     row = rowIndex.row()
-    sectionContent = preset.getParameters()[row]["content"]
+    sectionContent = preset.getParameterSectionContentByIdx(row)
     textNode.SetText(sectionContent)
     textWidget.readOnly = not isWritable(self._currentPreset)
-
-    # TODO: need to react to changes
 
   # def onOpenFileAction(self, location=False):
   #   selectedRow = self.getSelectedRow()
@@ -232,7 +244,7 @@ class PresetManagerDialog:
       from ElastixLib.preset import copyPreset
       # TODO: show dialog with proposed name (autofill with original preset's name).
       preset = self._currentPreset
-      newPreset = copyPreset(preset)
+      copyPreset(preset)
       self.refreshRegistrationPresetList()
       self.selectLastPreset()
 
@@ -255,7 +267,7 @@ class PresetManagerDialog:
   def onRemoveButton(self):
     selectedRow = self.ui.listWidget.currentRow
     if selectedRow != -1:
-      item = self.ui.listWidget.takeItem(selectedRow)
+      self.ui.listWidget.takeItem(selectedRow)
       self._currentPreset.removeParameterSection(selectedRow)
       self.onPresetSelected()
 
@@ -265,7 +277,7 @@ class PresetManagerDialog:
     if currentRow > 0:
       self._moveItem(currentRow, currentRow - 1)
       w.setCurrentRow(currentRow - 1)
-    # TODO: update order in Json
+    self._currentPreset.moveParameterSection(currentRow, currentRow - 1)
 
   def onMoveDownButton(self):
     w = self.ui.listWidget
@@ -273,7 +285,7 @@ class PresetManagerDialog:
     if currentRow < w.count + 1:
       self._moveItem(currentRow, currentRow + 1)
       w.setCurrentRow(currentRow + 1)
-    # TODO: update order in Json
+    self._currentPreset.moveParameterSection(currentRow, currentRow + 1)
 
   def onResetButton(self, button):
     if button is self.ui.buttonBox.button(qt.QDialogButtonBox.Reset):
@@ -376,5 +388,6 @@ class PresetManagerDialog:
       returnCode = self.widget.exec_()
       return returnCode
     finally:
+      if self.ui.textWidget.editing:
+        self.ui.textWidget.cancelEdits()
       slicer.mrmlScene.RemoveNode(textNode)
-

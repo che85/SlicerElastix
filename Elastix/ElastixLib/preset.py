@@ -77,12 +77,26 @@ class Preset:
     parameters = self.getParameters()
     parameters.pop(idx)
 
+  def getParameterSectionIndex(self, name):
+    parameters = self.getParameters()
+    for secIdx, param in enumerate(parameters):
+      if param["name"] == name:
+        return secIdx
+    return -1
+
   def getParameterSectionContent(self, name):
     parameters = self.getParameters()
     for param in parameters:
       if param["name"] == name:
         return param["content"]
     return ""
+
+  def getParameterSectionByIdx(self, idx):
+    parameters = self.getParameters()
+    return parameters[idx]
+
+  def getParameterSectionContentByIdx(self, idx):
+    return self.getParameterSectionByIdx(idx)["content"]
 
   def _getDictAttribute(self, key, default=""):
     try:
@@ -173,8 +187,18 @@ class InScenePreset(Preset):
     super().addParameterSection(name, content)
     self._updateTextNode()
 
+  def setParameterSectionContentByIdx(self, idx, content):
+    section = self.getParameterSectionByIdx(idx)
+    section["content"] = content
+    self._updateTextNode()
+
   def removeParameterSection(self, idx):
     super().removeParameterSection(idx)
+    self._updateTextNode()
+
+  def moveParameterSection(self, fromIdx, toIdx):
+    parameters = self.getParameters()
+    parameters.insert(toIdx, parameters.pop(fromIdx))
     self._updateTextNode()
 
 def getInScenePreset(presetNode: slicer.vtkMRMLTextNode):
