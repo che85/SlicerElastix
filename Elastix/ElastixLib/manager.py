@@ -1,3 +1,4 @@
+import logging
 import os
 import qt
 import slicer
@@ -76,6 +77,14 @@ class PresetManagerLogic:
         print(preset)
         return preset
     return None
+
+  def getRegistrationIndexByPresetId(self, presetId):
+    for presetIndex, preset in enumerate(self.getRegistrationPresets()):
+      if preset.getID() == presetId:
+        return presetIndex
+    message = f"Registration preset with id '{presetId}' could not be found.  Falling back to default preset."
+    logging.warning(message)
+    return 0
 
   def savePreset(self, preset: InScenePreset, keep=False):
     # after saving preset, should the preset be removed from the scene or keep it
@@ -163,7 +172,6 @@ class PresetManagerDialog:
 
     self.ui.moveUpButton.clicked.connect(self.onMoveUpButton)
     self.ui.moveDownButton.clicked.connect(self.onMoveDownButton)
-    self.ui.buttonBox.clicked.connect(self.onResetButton)
 
     self.ui.idBox.textChanged.connect(self.onIdChanged)
     self.ui.modalityBox.textChanged.connect(self.onModalityChanged)
@@ -224,7 +232,6 @@ class PresetManagerDialog:
   def refreshRegistrationPresetList(self):
     wasBlocked = self.ui.presetSelector.blockSignals(True)
     self.ui.presetSelector.clear()
-    self.ui.presetSelector.addItem('')
     for preset in self.manager.getRegistrationPresets(force_refresh=True):
       self.ui.presetSelector.addItem(preset.getName())
     self.ui.presetSelector.blockSignals(wasBlocked)
@@ -276,6 +283,9 @@ class PresetManagerDialog:
       self._currentPreset.addParameterSection(text, "")
       self.onPresetSelected()
 
+  def getSelectedPreset(self):
+    return self._currentPreset
+
   def getSelectedRow(self):
     selectedRows = self.selectionModel.selectedRows()
     if selectedRows:
@@ -305,25 +315,10 @@ class PresetManagerDialog:
       w.setCurrentRow(currentRow + 1)
     self._currentPreset.moveParameterSection(currentRow, currentRow + 1)
 
-  def onResetButton(self, button):
-    if button is self.ui.buttonBox.button(qt.QDialogButtonBox.Reset):
-      self.resetForm()
-
-  def resetForm(self):
-    self.widget.done(4)
-
   def _moveItem(self, fromRow, toRow):
     w = self.ui.listWidget
     currentItem = w.takeItem(fromRow)
     w.insertItem(toRow, currentItem)
-
-  # def getParameterFiles(self):
-  #   parameterFiles = []
-  #   for rowIdx in range(self.model.rowCount()):
-  #     item = self.model.item(rowIdx, 0)
-  #     if item:
-  #       parameterFiles.append(item.text())
-  #   return parameterFiles
 
   def getMetaInformation(self):
     attributes = {}
@@ -342,12 +337,9 @@ class PresetManagerDialog:
     idExists = self.ui.idBox.text in [preset.getID() for preset in self.manager.getRegistrationPresets()]
     validId = self.ui.idBox.text != '' and not idExists
     # self.ui.idBoxWarning.text = "*" if idExists else ''
-    self.ui.buttonBox.button(qt.QDialogButtonBox.Save).setEnabled(validId and validFormData)
+    #self.ui.idBoxWarning.toolTip = "*ParameterSet with given id already exists" if isWritable(preset)idExists else ''
 
-    # self.ui.warningLabel.text = "*ParameterSet with given id already exists" if isWritable(preset)idExists else ''
-    preset = None
-    if self.ui.presetSelector.currentIndex != 0:
-      preset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex - 1]
+    preset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex]
     self.displayTextForIndex()
 
     self.enableToolButtons(preset)
@@ -356,9 +348,7 @@ class PresetManagerDialog:
     self.ui.presetSelector.currentIndex = self.ui.presetSelector.count - 1
 
   def onPresetSelected(self):
-    self._currentPreset = None
-    if self.ui.presetSelector.currentIndex > 0:
-      self._currentPreset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex - 1]
+    self._currentPreset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex]
     self.autoPopulateForm()
     self.updateGUI()
 
@@ -396,12 +386,14 @@ class PresetManagerDialog:
     for c in [self.ui.idBox, self.ui.modalityBox, self.ui.contentBox, self.ui.descriptionBox, self.ui.publicationsBox]:
       c.enabled = enabled
 
-  def exec_(self):
+  def exec_(self, presetId):
     textNode = None
     try:
       textNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
       self.ui.textWidget.setMRMLTextNode(textNode)
       self.refreshRegistrationPresetList()
+      self.ui.presetSelector.currentIndex = self.manager.getRegistrationIndexByPresetId(presetId)
+      self.onPresetSelected()
       returnCode = self.widget.exec_()
       return returnCode
     finally:

@@ -2,6 +2,10 @@ import slicer
 import qt
 
 
+def showFolder(path):
+  qt.QDesktopServices().openUrl(qt.QUrl("file:///" + path, qt.QUrl.TolerantMode))
+
+
 def createTempDirectory():
   tempDir = qt.QDir(getTempDirectoryBase())
   tempDirName = qt.QDateTime().currentDateTime().toString("yyyyMMdd_hhmmss_zzz")
