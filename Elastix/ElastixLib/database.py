@@ -149,7 +149,7 @@ class UserElastixDataBase(ElastixDatabase):
     super().__init__()
 
   def getPresetsDir(self):
-    return self.DATABASE_LOCATION
+    return str(self.DATABASE_LOCATION)
 
   def _getRegistrationPresets(self):
     xml_files = self.getAllXMLFiles(self.DATABASE_LOCATION)

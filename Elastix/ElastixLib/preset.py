@@ -10,6 +10,14 @@ from typing import List, Union, Dict
 # for caching instead of persistently creating new preset for each node in the scene
 InScenePresets = {}
 
+ID_KEY = "id"
+MODALITY_KEY = "modality"
+DESCRIPTION_KEY = "description"
+CONTENT_KEY = "content"
+PUBLICATIONS_KEY = "publications"
+PARAMETER_FILES_KEY = "parameter_files"
+NAME_KEY = "name"
+
 
 class Preset:
 
@@ -20,70 +28,70 @@ class Preset:
     return f"{self.getModality()} ({self.getContent()})"
 
   def getID(self):
-    return self._getDictAttribute("id")
+    return self._getDictAttribute(ID_KEY)
 
   def setID(self, value: str):
-    self._data["id"] = value
+    self._data[ID_KEY] = value
 
   def getModality(self):
-    return self._getDictAttribute("modality")
+    return self._getDictAttribute(MODALITY_KEY)
 
   def setModality(self, value: str):
-    self._data["modality"] = value
+    self._data[MODALITY_KEY] = value
 
   def getContent(self) -> str:
-    return self._getDictAttribute("content")
+    return self._getDictAttribute(CONTENT_KEY)
 
   def setContent(self, value: str):
-    self._data["content"] = value
+    self._data[CONTENT_KEY] = value
 
   def getDescription(self) -> str:
-    return self._getDictAttribute("description")
+    return self._getDictAttribute(DESCRIPTION_KEY)
 
   def setDescription(self, value: str):
-    self._data["description"] = value
+    self._data[DESCRIPTION_KEY] = value
 
   def getPublications(self) -> str:
-    return self._getDictAttribute("publications")
+    return self._getDictAttribute(PUBLICATIONS_KEY)
 
   def setPublications(self, value: str):
-    self._data["publications"] = value
+    self._data[PUBLICATIONS_KEY] = value
 
   def setParameters(self, values: List[Dict[str, str]]):
-    self._data["parameter_files"] = values
+    self._data[PARAMETER_FILES_KEY] = values
 
   def getParameterFiles(self):
     tempDir = createTempDirectory()
     filenames = []
     for param in self.getParameters():
-      name = param["name"]
+      name = param[NAME_KEY]
       if not name.endswith('.txt'):
         name += '.txt'
       filename = os.path.join(tempDir, name)
       with open(filename, 'w') as file:
-        file.write(param["content"])
+        file.write(param[CONTENT_KEY])
       filenames.append(filename)
     return filenames
 
   def getParameters(self):
-    return self._getDictAttribute("parameter_files", [])
+    return self._getDictAttribute(PARAMETER_FILES_KEY, [])
 
   def getParameterSectionNames(self) -> List:
-    return [pf["name"] for pf in self._data["parameter_files"]]
+    return [pf[NAME_KEY] for pf in self._data[PARAMETER_FILES_KEY]]
 
   def addParameterSection(self, name, content: Union[str]):
     parameters = self.getParameters()
     parameters.append(
       {
-        "name": name,
-        "content": content
+        NAME_KEY: name,
+        CONTENT_KEY: content
       }
     )
 
   def hasParameterSection(self, name):
     parameters = self.getParameters()
     for param in parameters:
-      if param["name"] == name:
+      if param[NAME_KEY] == name:
         return True
     return False
 
@@ -94,15 +102,15 @@ class Preset:
   def getParameterSectionIndex(self, name):
     parameters = self.getParameters()
     for secIdx, param in enumerate(parameters):
-      if param["name"] == name:
+      if param[NAME_KEY] == name:
         return secIdx
     return -1
 
   def getParameterSectionContent(self, name):
     parameters = self.getParameters()
     for param in parameters:
-      if param["name"] == name:
-        return param["content"]
+      if param[NAME_KEY] == name:
+        return param[CONTENT_KEY]
     return ""
 
   def getParameterSectionByIdx(self, idx):
@@ -110,7 +118,7 @@ class Preset:
     return parameters[idx]
 
   def getParameterSectionContentByIdx(self, idx):
-    return self.getParameterSectionByIdx(idx)["content"]
+    return self.getParameterSectionByIdx(idx)[CONTENT_KEY]
 
   def _getDictAttribute(self, key, default=""):
     try:
@@ -203,7 +211,7 @@ class InScenePreset(Preset):
 
   def setParameterSectionContentByIdx(self, idx, content):
     section = self.getParameterSectionByIdx(idx)
-    section["content"] = content
+    section[CONTENT_KEY] = content
     self._updateTextNode()
 
   def removeParameterSection(self, idx):

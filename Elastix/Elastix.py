@@ -175,6 +175,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   def onSceneEndClose(self, caller, event):
     if self.parent.isEntered:
       self.initializeParameterNode()
+    self.refreshRegistrationPresetList()
 
   def initializeParameterNode(self):
     self.setParameterNode(self.logic.getParameterNode() if not self._parameterNode else self._parameterNode)

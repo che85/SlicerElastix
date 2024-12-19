@@ -86,10 +86,6 @@ class PresetManagerLogic:
     logging.warning(message)
     return 0
 
-  def savePreset(self, preset: InScenePreset, keep=False):
-    # after saving preset, should the preset be removed from the scene or keep it
-    pass
-
   def importUserDatabase(self, f: str):
     # TODO: implement reading from a folder or zip file and search for xml files
     # TODO: database from unzipped file and then copy presets into scene
@@ -99,7 +95,7 @@ class PresetManagerLogic:
     # zip whole database and download
     pass
 
-  def savePreset(self, preset: InScenePreset):
+  def savePreset(self, preset: InScenePreset, keep=False):
     if not isinstance(preset, InScenePreset):
       raise TypeError(f"Only presets of type {InScenePreset.__class__.__name__} can be persisted to the UserDatabase")
 
@@ -164,9 +160,12 @@ class PresetManagerDialog:
     self.ui = slicer.util.childWidgetVariables(self.widget)
 
     self.ui.clonePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerEditCopy.png"))
+    self.ui.savePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerSave.png"))
 
     # configure buttons
     self.ui.clonePresetButton.clicked.connect(self.onClonePresetButton)
+    self.ui.savePresetButton.clicked.connect(self.onSavePresetButton)
+
     self.ui.addButton.clicked.connect(self.onAddButton)
     self.ui.removeButton.clicked.connect(self.onRemoveButton)
 
@@ -198,10 +197,12 @@ class PresetManagerDialog:
     self.updateGUI()
 
   def onModalityChanged(self, text):
+    # TODO: needs to update preset name
     self._currentPreset.setModality(text)
     self.updateGUI()
 
   def onContentChanged(self, text):
+    # TODO: needs to update preset name
     self._currentPreset.setContent(text)
     self.updateGUI()
 
@@ -273,6 +274,13 @@ class PresetManagerDialog:
       self.refreshRegistrationPresetList()
       self.selectLastPreset()
 
+  def onSavePresetButton(self):
+    # Can only be done if InScenePreset is selected
+    if isWritable(self._currentPreset):
+      print("can be saved")
+    else:
+      print("cannot be saved")
+
   def onAddButton(self):
     w = self.ui.listWidget
     text = qt.QInputDialog.getText(None, "Add registration section/step", "Name:")
@@ -338,7 +346,6 @@ class PresetManagerDialog:
     validId = self.ui.idBox.text != '' and not idExists
     # self.ui.idBoxWarning.text = "*" if idExists else ''
     #self.ui.idBoxWarning.toolTip = "*ParameterSet with given id already exists" if isWritable(preset)idExists else ''
-
     preset = self.manager.getRegistrationPresets()[self.ui.presetSelector.currentIndex]
     self.displayTextForIndex()
 
@@ -383,7 +390,8 @@ class PresetManagerDialog:
 
   def _enableForm(self, preset):
     enabled = isWritable(preset)
-    for c in [self.ui.idBox, self.ui.modalityBox, self.ui.contentBox, self.ui.descriptionBox, self.ui.publicationsBox]:
+    for c in [self.ui.savePresetButton, self.ui.idBox, self.ui.modalityBox, self.ui.contentBox, self.ui.descriptionBox,
+              self.ui.publicationsBox]:
       c.enabled = enabled
 
   def exec_(self, presetId):

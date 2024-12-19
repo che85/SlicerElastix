@@ -502,16 +502,6 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
-       <widget class="QPushButton" name="showBuiltinPresetFolderButton">
-        <property name="toolTip">
-         <string>Open the folder where temporary files are stored.</string>
-        </property>
-        <property name="text">
-         <string>Open folder</string>
-        </property>
-       </widget>
-      </item>
       <item row="4" column="0">
        <widget class="QLabel" name="label_15">
         <property name="text">
@@ -541,6 +531,9 @@
         </property>
         <property name="filters">
          <set>ctkPathLineEdit::Dirs|ctkPathLineEdit::Executable|ctkPathLineEdit::NoDot|ctkPathLineEdit::NoDotDot|ctkPathLineEdit::Readable</set>
+        </property>
+        <property name="settingKey">
+         <string>Elastix/CustomElastixPath</string>
         </property>
        </widget>
       </item>
@@ -579,6 +572,16 @@
         </property>
         <property name="selectNodeUponCreation">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="showBuiltinPresetFolderButton">
+        <property name="toolTip">
+         <string>Open the folder where temporary files are stored.</string>
+        </property>
+        <property name="text">
+         <string>Open folder</string>
         </property>
        </widget>
       </item>
