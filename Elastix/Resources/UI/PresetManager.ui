@@ -32,34 +32,14 @@
       <string/>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="4" column="0" alignment="Qt::AlignTop">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Parameter Files:</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="typeLabel">
+      <item row="7" column="2">
+       <widget class="QLineEdit" name="contentBox">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>id: </string>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="1">
-       <widget class="QPlainTextEdit" name="publicationsBox"/>
-      </item>
-      <item row="11" column="0" colspan="2">
+      <item row="11" column="0" colspan="3">
        <widget class="QDialogButtonBox" name="buttonBox">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -72,41 +52,10 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label">
+      <item row="9" column="0" alignment="Qt::AlignTop">
+       <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>Content: </string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Modality: </string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="QLineEdit" name="contentBox">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Description: </string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QLineEdit" name="modalityBox"/>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_8">
-        <property name="text">
-         <string>Preset:</string>
+         <string>Publications: </string>
         </property>
        </widget>
       </item>
@@ -117,32 +66,44 @@
         </property>
        </widget>
       </item>
-      <item row="9" column="0" alignment="Qt::AlignTop">
-       <widget class="QLabel" name="label_5">
+      <item row="9" column="2">
+       <widget class="QPlainTextEdit" name="publicationsBox"/>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_8">
         <property name="text">
-         <string>Publications: </string>
+         <string>Preset:</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="2">
-       <widget class="QLabel" name="idBoxWarning">
-        <property name="styleSheet">
-         <string notr="true">QLabel {
-color: rgb(255, 0, 4)
-}</string>
-        </property>
+      <item row="2" column="2">
+       <widget class="QLabel" name="typeLabel">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QLineEdit" name="idBox"/>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>Modality: </string>
+        </property>
+       </widget>
       </item>
-      <item row="8" column="1">
-       <widget class="QLineEdit" name="descriptionBox"/>
+      <item row="4" column="0" alignment="Qt::AlignTop">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Parameter Files:</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
-      <item row="4" column="1">
+      <item row="6" column="2">
+       <widget class="QLineEdit" name="modalityBox"/>
+      </item>
+      <item row="4" column="2">
        <widget class="QFrame" name="frame_3">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -332,25 +293,7 @@ color: rgb(255, 0, 4)
         </layout>
        </widget>
       </item>
-      <item row="10" column="1">
-       <widget class="QLabel" name="warningLabel">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">QLabel {
-color: rgb(255, 0, 4)
-}</string>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
+      <item row="1" column="2">
        <widget class="QFrame" name="frame_2">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -405,6 +348,63 @@ color: rgb(255, 0, 4)
          </item>
         </layout>
        </widget>
+      </item>
+      <item row="8" column="0" alignment="Qt::AlignTop">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Description: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="3">
+       <widget class="QLabel" name="idBoxWarning">
+        <property name="styleSheet">
+         <string notr="true">QLabel {
+color: rgb(255, 0, 4)
+}</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Content: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>id: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="2">
+       <widget class="QLabel" name="warningLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QLabel {
+color: rgb(255, 0, 4)
+}</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
+       <widget class="QLineEdit" name="idBox"/>
+      </item>
+      <item row="8" column="2">
+       <widget class="QPlainTextEdit" name="descriptionBox"/>
       </item>
      </layout>
     </widget>

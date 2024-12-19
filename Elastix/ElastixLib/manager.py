@@ -168,10 +168,11 @@ class PresetManagerDialog:
     self.ui.moveDownButton.clicked.connect(self.onMoveDownButton)
     self.ui.buttonBox.clicked.connect(self.onResetButton)
 
-    self.ui.idBox.textChanged.connect(self.updateGUI)
-    self.ui.modalityBox.textChanged.connect(self.updateGUI)
-    self.ui.contentBox.textChanged.connect(self.updateGUI)
-    self.ui.descriptionBox.textChanged.connect(self.updateGUI)
+    self.ui.idBox.textChanged.connect(self.onIdChanged)
+    self.ui.modalityBox.textChanged.connect(self.onModalityChanged)
+    self.ui.contentBox.textChanged.connect(self.onContentChanged)
+    self.ui.descriptionBox.textChanged.connect(self.onDescriptionChanged)
+    self.ui.publicationsBox.textChanged.connect(self.onPublicationsChanged)
 
     self.selectionModel.selectionChanged.connect(self.updateGUI)
 
@@ -186,6 +187,26 @@ class PresetManagerDialog:
     #                                           icon=qt.QStyle.SP_DirLinkIcon)
 
     self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
+
+  def onIdChanged(self, text):
+    self._currentPreset.setID(text)
+    self.updateGUI()
+
+  def onModalityChanged(self, text):
+    self._currentPreset.setModality(text)
+    self.updateGUI()
+
+  def onContentChanged(self, text):
+    self._currentPreset.setContent(text)
+    self.updateGUI()
+
+  def onDescriptionChanged(self, text):
+    self._currentPreset.setDescription(text)
+    self.updateGUI()
+
+  def onPublicationsChanged(self, text):
+    self._currentPreset.setPublications(text)
+    self.updateGUI()
 
   def onEditingChanged(self, active):
     textNode = self.ui.textWidget.mrmlTextNode()
@@ -310,7 +331,7 @@ class PresetManagerDialog:
   def getMetaInformation(self):
     attributes = {}
     attributes['content'] = self.ui.contentBox.text
-    attributes['description'] = self.ui.descriptionBox.text
+    attributes['description'] = self.ui.descriptionBox.plainText
     attributes['id'] = self.ui.idBox.text
     attributes['modality'] = self.ui.modalityBox.text
     attributes['publications'] = self.ui.publicationsBox.plainText
@@ -320,7 +341,7 @@ class PresetManagerDialog:
     w = self.ui.listWidget
     validParameterFiles = w.count > 0 and all(w.item(rowIdx) is not None for rowIdx in range(w.count))
     validFormData = validParameterFiles and self.ui.modalityBox.text != '' \
-                    and self.ui.contentBox.text != '' and self.ui.descriptionBox.text != ''
+                    and self.ui.contentBox.text != '' and self.ui.descriptionBox.plainText != ''
     idExists = self.ui.idBox.text in [preset.getID() for preset in self.manager.getRegistrationPresets()]
     validId = self.ui.idBox.text != '' and not idExists
     # self.ui.idBoxWarning.text = "*" if idExists else ''
@@ -360,7 +381,7 @@ class PresetManagerDialog:
       self.ui.idBox.text = "" if not preset else preset.getID()
       self.ui.modalityBox.text = "" if not preset else preset.getModality()
       self.ui.contentBox.text = "" if not preset else preset.getContent()
-      self.ui.descriptionBox.text = "" if not preset else preset.getDescription()
+      self.ui.descriptionBox.plainText = "" if not preset else preset.getDescription()
       self.ui.publicationsBox.plainText = "" if not preset else preset.getPublications()
       self.ui.typeLabel.text = ""
 
@@ -375,8 +396,7 @@ class PresetManagerDialog:
 
   def _enableForm(self, preset):
     enabled = isWritable(preset)
-    components = [self.ui.idBox, self.ui.modalityBox, self.ui.contentBox,self.ui.descriptionBox,self.ui.publicationsBox]
-    for c in components:
+    for c in [self.ui.idBox, self.ui.modalityBox, self.ui.contentBox, self.ui.descriptionBox, self.ui.publicationsBox]:
       c.enabled = enabled
 
   def exec_(self):
