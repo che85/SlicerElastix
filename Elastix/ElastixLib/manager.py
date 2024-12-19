@@ -73,15 +73,12 @@ class PresetManagerLogic:
   def getPresetByID(self, presetId) -> Preset:
     for preset in self.getRegistrationPresets():
       if preset.getID() == presetId:
+        print(preset)
         return preset
     return None
 
   def savePreset(self, preset: InScenePreset, keep=False):
     # after saving preset, should the preset be removed from the scene or keep it
-    pass
-
-  def getPresetByID(self, presetID: str):
-    # find Preset
     pass
 
   def importUserDatabase(self, f: str):
@@ -98,7 +95,7 @@ class PresetManagerLogic:
       raise TypeError(f"Only presets of type {InScenePreset.__class__.__name__} can be persisted to the UserDatabase")
 
     # TODO: add button to save InScenePreset to user database
-    # TODO: ask user if they want to keep it
+    # TODO: ask user if they want to keep in scene preset
     # create folder in db
     # create xml
     # copy txt files

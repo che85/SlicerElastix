@@ -3,7 +3,7 @@ import os
 import subprocess
 import vtk, qt, slicer
 
-from ElastixLib.constants import *
+from ElastixLib.utils import *
 from ElastixLib.manager import PresetManagerLogic
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
@@ -147,7 +147,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     logging.debug("Reloading Elastix")
 
     packageName='ElastixLib'
-    submoduleNames=['constants', 'database', 'manager', 'preset', 'ElastixPresetSubjectHierarchyPlugin']
+    submoduleNames=['utils', 'database', 'manager', 'preset', 'ElastixPresetSubjectHierarchyPlugin']
     import imp
     f, filename, description = imp.find_module(packageName)
     package = imp.load_module(packageName, f, filename, description)
@@ -283,7 +283,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     qt.QDesktopServices().openUrl(qt.QUrl("file:///" + path, qt.QUrl.TolerantMode))
 
   def onShowTemporaryFilesFolder(self):
-    self._showFolder(self.logic.getTempDirectoryBase())
+    self._showFolder(getTempDirectoryBase())
 
   def onShowBuiltinPresetsFolder(self):
     self._showFolder(self.logic.getBuiltinPresetsDir())
@@ -594,25 +594,12 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
         self.addLog(processOutput)
       raise subprocess.CalledProcessError(return_code, "elastix")
 
-  def createTempDirectory(self):
-    tempDir = qt.QDir(self.getTempDirectoryBase())
-    tempDirName = qt.QDateTime().currentDateTime().toString("yyyyMMdd_hhmmss_zzz")
-    fileInfo = qt.QFileInfo(qt.QDir(tempDir), tempDirName)
-    return self.createDirectory(fileInfo.absoluteFilePath())
-
-  def getTempDirectoryBase(self):
-    tempDir = qt.QDir(slicer.app.temporaryPath)
-    fileInfo = qt.QFileInfo(qt.QDir(tempDir), "Elastix")
-    return self.createDirectory(fileInfo.absoluteFilePath())
-
   def registerVolumesUsingParameterNode(self, parameterNode):
     presetId = parameterNode.GetParameter(self.REGISTRATION_PRESET_ID_PARAM)
     presetIdx = self.getRegistrationIndexByPresetId(presetId)
     registrationPreset = self.getRegistrationPresets()[presetIdx]
 
-    # TODO: need to find a way to retrieve parameter files from all kinds of databases
-    # TODO: temporarily store txt files for registration
-    parameterFilenames = registrationPreset.parameterFiles
+    parameterFilenames = registrationPreset.getParameterFiles()
 
     self.registerVolumes(
       fixedVolumeNode=parameterNode.GetNodeReference(self.FIXED_VOLUME_REF),
@@ -630,6 +617,8 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
                       forceDisplacementFieldOutputTransform=True, initialTransformNode=None):
 
     self.isRunning = True
+    tempDir = createTempDirectory()
+
     try:
       if parameterFilenames is None:
         self.addLog(f"Using default registration preset with id '{self.DEFAULT_PRESET_ID}'")
@@ -638,12 +627,11 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
 
       self.cancelRequested = False
 
-      tempDir = self.createTempDirectory()
       self.addLog(f'Volume registration is started in working directory: {tempDir}')
 
       # Specify (and create) input/output locations
-      inputDir = self.createDirectory(os.path.join(tempDir, self.INPUT_DIR_NAME))
-      resultTransformDir = self.createDirectory(os.path.join(tempDir, self.OUTPUT_TRANSFORM_DIR_NAME))
+      inputDir = createDirectory(os.path.join(tempDir, self.INPUT_DIR_NAME))
+      resultTransformDir = createDirectory(os.path.join(tempDir, self.OUTPUT_TRANSFORM_DIR_NAME))
 
       # compose parameters for running Elastix
       inputParamsElastix = self._addInputVolumes(inputDir, [
@@ -692,7 +680,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
       except:
         elastixTransformFileImported = False
 
-    resultResampleDir = self.createDirectory(os.path.join(tempDir, self.OUTPUT_RESAMPLE_DIR_NAME))
+    resultResampleDir = createDirectory(os.path.join(tempDir, self.OUTPUT_RESAMPLE_DIR_NAME))
     # Run Transformix to get resampled moving volume or transformation as a displacement field
     if outputVolumeNode is not None or not elastixTransformFileImported:
       inputParamsTransformix = [
@@ -752,8 +740,7 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
   def _addParameterFiles(self, parameterFilenames):
     params = []
     for parameterFilename in parameterFilenames:
-      # TODO: copy to temp folder all data + parameter files
-      parameterFilePath = os.path.abspath(os.path.join(self.databaseDir, parameterFilename))
+      parameterFilePath = os.path.abspath(parameterFilename)
       params += ['-p', parameterFilePath]
     return params
 
@@ -774,12 +761,6 @@ class ElastixLogic(ScriptedLoadableModuleLogic, PresetManagerLogic):
       f.write('\n'.join(initialTransformSettings))
 
     return ['-t0', initialTransformParameterFile]
-
-  def createDirectory(self, path):
-    if qt.QDir().mkpath(path):
-      return path
-    else:
-      raise RuntimeError(f"Failed to create directory {path}")
 
   def loadTransformFromFile(self, fileName, node):
     tmpNode = slicer.util.loadTransform(fileName)
@@ -811,12 +792,11 @@ class ElastixTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     self.setUp()
-    # TODO: write preset tests
     self.test_ElastixPresets()
     self.test_CopyAndDeleteElastixPreset()
-    # self.test_Elastix_Default_Registration_Preset()
-    # self.test_Elastix_Explicit_Arguments()
-    # self.test_Elastix_ParameterNode()
+    self.test_Elastix_Default_Registration_Preset()
+    self.test_Elastix_Explicit_Arguments()
+    self.test_Elastix_ParameterNode()
 
   def test_Elastix_Default_Registration_Preset(self):
     self.delayDisplay(f"Running test: test_Elastix_Default_Registration_Preset", msec=500)
@@ -828,7 +808,7 @@ class ElastixTest(ScriptedLoadableModuleTest):
     self.delayDisplay(f"Running test: test_Elastix_Explicit_Arguments", msec=500)
 
     logic = ElastixLogic()
-    parameterFilenames = logic.getRegistrationPresets()[0][RegistrationPresets_ParameterFilenames]
+    parameterFilenames = logic.getRegistrationPresets()[0].getParameterFiles()
     logic.registerVolumes(fixedVolumeNode=self.tumor1, movingVolumeNode=self.tumor2,
                           parameterFilenames=parameterFilenames, outputVolumeNode=self.outputVolume)
 
@@ -850,12 +830,11 @@ class ElastixTest(ScriptedLoadableModuleTest):
     self.delayDisplay('Test passed!')
 
   def test_ElastixPresets(self):
-    from ElastixLib.preset import createPreset
+    self.delayDisplay(f"Running test: test_ElastixPresets", msec=500)
 
-    with self.assertRaises(ValueError):
-      createPreset("tes123", "CT", "foo", "bar", "None", "")
+    from ElastixLib.preset import Preset, InScenePreset, createPreset
 
-    from ElastixLib.preset import Preset, InScenePreset
+    createPreset("tes123", "CT", "foo", "bar", "None")
 
     # create in scene preset from scratch and delete to make sure that nodes were removed
     preset = InScenePreset()
@@ -864,7 +843,12 @@ class ElastixTest(ScriptedLoadableModuleTest):
     preset.delete()
     self.assertIsNone(node.GetScene())
 
+    self.delayDisplay('Test passed!')
+
+
   def test_CopyAndDeleteElastixPreset(self):
+    self.delayDisplay(f"Running test: test_CopyAndDeleteElastixPreset", msec=500)
+
     from ElastixLib.database import BuiltinElastixDatabase
     db = BuiltinElastixDatabase()
     presets = db.getRegistrationPresets()
@@ -874,3 +858,5 @@ class ElastixTest(ScriptedLoadableModuleTest):
     preset = copyPreset(presets[0])
 
     preset.delete()
+
+    self.delayDisplay('Test passed!')

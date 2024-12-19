@@ -1,6 +1,8 @@
+import os
 import json
 from pathlib import Path
 
+from ElastixLib.utils import createTempDirectory
 
 import slicer
 from typing import List, Union, Dict
@@ -48,8 +50,20 @@ class Preset:
     self._data["publications"] = value
 
   def setParameters(self, values: List[Dict[str, str]]):
-    # TODO: check for proper types?
     self._data["parameter_files"] = values
+
+  def getParameterFiles(self):
+    tempDir = createTempDirectory()
+    filenames = []
+    for param in self.getParameters():
+      name = param["name"]
+      if not name.endswith('.txt'):
+        name += '.txt'
+      filename = os.path.join(tempDir, name)
+      with open(filename, 'w') as file:
+        file.write(param["content"])
+      filenames.append(filename)
+    return filenames
 
   def getParameters(self):
     return self._getDictAttribute("parameter_files", [])
@@ -215,6 +229,9 @@ def getInScenePreset(presetNode: slicer.vtkMRMLTextNode):
 
 
 def createPreset(id:str, modality:str, content:str, description:str, publications:str, parameterFiles: List[str] = None):
+  if parameterFiles is None:
+    parameterFiles = []
+
   preset = Preset()
   preset.setID(id)
   preset.setModality(modality)
