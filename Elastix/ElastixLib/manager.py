@@ -162,6 +162,9 @@ class PresetManagerDialog:
     self.ui.clonePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerEditCopy.png"))
     self.ui.savePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerSave.png"))
 
+    self.ui.addButton.setIcon(qt.QIcon(":Icons/Add.png"))
+    self.ui.removeButton.setIcon(qt.QIcon(":Icons/Remove.png"))
+
     # configure buttons
     self.ui.clonePresetButton.clicked.connect(self.onClonePresetButton)
     self.ui.savePresetButton.clicked.connect(self.onSavePresetButton)
@@ -183,6 +186,7 @@ class PresetManagerDialog:
     self.ui.presetSelector.currentIndexChanged.connect(self.onPresetSelected)
 
     self.ui.textWidget.editingChanged.connect(self.onEditingChanged)
+    self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
 
     # self._openFileAction = makeAction(self.ui.toolButton, text="Open Parameter File", slot=self.onOpenFileAction,
     #                                   icon=qt.QStyle.SP_FileLinkIcon)
@@ -190,21 +194,19 @@ class PresetManagerDialog:
     #                                           slot=lambda: self.onOpenFileAction(location=True),
     #                                           icon=qt.QStyle.SP_DirLinkIcon)
 
-    self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
-
   def onIdChanged(self, text):
     self._currentPreset.setID(text)
     self.updateGUI()
 
   def onModalityChanged(self, text):
-    # TODO: needs to update preset name
     self._currentPreset.setModality(text)
     self.updateGUI()
+    self.refreshCurrentPresetName()
 
   def onContentChanged(self, text):
-    # TODO: needs to update preset name
     self._currentPreset.setContent(text)
     self.updateGUI()
+    self.refreshCurrentPresetName()
 
   def onDescriptionChanged(self, text):
     self._currentPreset.setDescription(text)
@@ -237,6 +239,9 @@ class PresetManagerDialog:
       self.ui.presetSelector.addItem(preset.getName())
     self.ui.presetSelector.blockSignals(wasBlocked)
     self.updateGUI()
+
+  def refreshCurrentPresetName(self):
+    self.ui.presetSelector.setItemText(self.ui.presetSelector.currentIndex, self._currentPreset.getName())
 
   def displayTextForIndex(self):
     rowIndex = self.getSelectedRow()
@@ -277,9 +282,8 @@ class PresetManagerDialog:
   def onSavePresetButton(self):
     # Can only be done if InScenePreset is selected
     if isWritable(self._currentPreset):
+      # TODO: implement
       print("can be saved")
-    else:
-      print("cannot be saved")
 
   def onAddButton(self):
     w = self.ui.listWidget
