@@ -374,7 +374,6 @@ class PresetManagerDialog:
       self.ui.contentBox.text = "" if not preset else preset.getContent()
       self.ui.descriptionBox.plainText = "" if not preset else preset.getDescription()
       self.ui.publicationsBox.plainText = "" if not preset else preset.getPublications()
-    self.ui.typeLabel.text = ""
 
   def enableToolButtons(self, preset):
     selectedRow = self.getSelectedRow()

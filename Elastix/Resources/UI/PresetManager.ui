@@ -32,48 +32,119 @@
       <string/>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
-      <item row="9" column="1">
-       <widget class="QPlainTextEdit" name="descriptionBox"/>
-      </item>
-      <item row="8" column="1">
+      <item row="7" column="1">
        <widget class="QLineEdit" name="contentBox">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="10" column="0" alignment="Qt::AlignTop">
+      <item row="8" column="0" alignment="Qt::AlignTop">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Description: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QLineEdit" name="modalityBox"/>
+      </item>
+      <item row="9" column="0" alignment="Qt::AlignTop">
        <widget class="QLabel" name="label_5">
         <property name="text">
          <string>Publications: </string>
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label_7">
-        <property name="text">
-         <string>Type:</string>
+      <item row="1" column="1">
+       <widget class="QFrame" name="frame_2">
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
         </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QComboBox" name="presetSelector">
+           <property name="toolTip">
+            <string>Select existing Preset to auto-populate form</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="clonePresetButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>36</width>
+             <height>36</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>make a copy of the selected preset</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="savePresetButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>36</width>
+             <height>36</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Save to user presets</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
-      <item row="10" column="1">
+      <item row="9" column="1">
        <widget class="QPlainTextEdit" name="publicationsBox"/>
       </item>
-      <item row="3" column="1">
-       <widget class="QLabel" name="typeLabel">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
+      <item row="6" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
          <string>Modality: </string>
         </property>
        </widget>
       </item>
-      <item row="5" column="0" alignment="Qt::AlignTop">
+      <item row="4" column="0" alignment="Qt::AlignTop">
        <widget class="QLabel" name="label_6">
         <property name="text">
          <string>Parameter Files:</string>
@@ -83,10 +154,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
-       <widget class="QLineEdit" name="modalityBox"/>
-      </item>
-      <item row="5" column="1">
+      <item row="4" column="1">
        <widget class="QFrame" name="frame_3">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -276,92 +344,38 @@
         </layout>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QFrame" name="frame_2">
-        <property name="frameShape">
-         <enum>QFrame::NoFrame</enum>
-        </property>
-        <property name="frameShadow">
-         <enum>QFrame::Raised</enum>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QComboBox" name="presetSelector">
-           <property name="toolTip">
-            <string>Select existing Preset to auto-populate form</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="clonePresetButton">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>36</width>
-             <height>36</height>
-            </size>
-           </property>
-           <property name="toolTip">
-            <string>make a copy of the selected preset</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="savePresetButton">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>36</width>
-             <height>36</height>
-            </size>
-           </property>
-           <property name="toolTip">
-            <string>Save to user presets</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
+      <item row="8" column="1">
+       <widget class="QPlainTextEdit" name="descriptionBox"/>
       </item>
-      <item row="9" column="0" alignment="Qt::AlignTop">
-       <widget class="QLabel" name="label_2">
+      <item row="10" column="1">
+       <widget class="QLabel" name="warningLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QLabel {
+color: rgb(255, 0, 4)
+}</string>
+        </property>
         <property name="text">
-         <string>Description: </string>
+         <string/>
         </property>
        </widget>
       </item>
-      <item row="6" column="2">
+      <item row="7" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Content: </string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="idBox"/>
+      </item>
+      <item row="5" column="2">
        <widget class="QLabel" name="idBoxWarning">
         <property name="styleSheet">
          <string notr="true">QLabel {
@@ -380,40 +394,12 @@ color: rgb(255, 0, 4)
         </property>
        </widget>
       </item>
-      <item row="11" column="1">
-       <widget class="QLabel" name="warningLabel">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">QLabel {
-color: rgb(255, 0, 4)
-}</string>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Content: </string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
+      <item row="5" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>id: </string>
         </property>
        </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QLineEdit" name="idBox"/>
       </item>
      </layout>
     </widget>
