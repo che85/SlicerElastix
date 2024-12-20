@@ -250,7 +250,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       slicer.util.toBool(self._parameterNode.GetParameter(self.logic.FORCE_GRID_TRANSFORM_PARAM))
 
     registrationPresetIndex = \
-      self.logic.getRegistrationIndexByPresetId(self._parameterNode.GetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM))
+      self.logic.getIdxByPresetId(self._parameterNode.GetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM))
     self.ui.registrationPresetSelector.setCurrentIndex(registrationPresetIndex)
 
     self.updateApplyButtonState()
@@ -265,7 +265,7 @@ class ElastixWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     dialog.exec_(self._parameterNode.GetParameter(self.logic.REGISTRATION_PRESET_ID_PARAM))
     self.refreshRegistrationPresetList()
     preset = dialog.getSelectedPreset()
-    idx = self.logic.getRegistrationIndexByPresetId(preset.getID())
+    idx = self.logic.getIdxByPresetId(preset.getID())
     self.ui.registrationPresetSelector.currentIndex = idx
 
   def onShowTemporaryFilesFolder(self):

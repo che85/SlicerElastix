@@ -120,6 +120,9 @@ class Preset:
   def getParameterSectionContentByIdx(self, idx):
     return self.getParameterSectionByIdx(idx)[CONTENT_KEY]
 
+  def getMetaInformation(self, keys):
+    return {key: self._data[key] for key in keys}
+
   def _getDictAttribute(self, key, default=""):
     try:
       return self._data[key]
@@ -265,9 +268,7 @@ def copyPreset(preset: Preset) -> InScenePreset:
   :return: instance of InScenePreset
   """
   presetCopy = InScenePreset()
-  import random
-  import base64
-  presetCopy.setID(f"{preset.getID()}-{base64.urlsafe_b64encode(random.randbytes(6)).decode()}")
+  presetCopy.setID(generateID(preset.getID()))
   presetCopy.setModality(preset.getModality())
   presetCopy.setContent(preset.getContent())
   presetCopy.setDescription(preset.getDescription())
@@ -275,8 +276,17 @@ def copyPreset(preset: Preset) -> InScenePreset:
 
   import copy
   presetCopy.setParameters(copy.deepcopy(preset.getParameters()))
-
   return presetCopy
+
+
+def generateID(presetID):
+  hook = "-#"
+  if hook in presetID:
+    presetID = presetID[:presetID.find(hook)]
+
+  import random
+  import base64
+  return f"{presetID}-#{base64.urlsafe_b64encode(random.randbytes(6)).decode()}"
 
 
 def isWritable(preset: Preset):

@@ -4,7 +4,7 @@ import qt
 import slicer
 from typing import Callable
 from ElastixLib.database import BuiltinElastixDatabase, UserElastixDataBase, InSceneElastixDatabase
-from ElastixLib.preset import Preset, InScenePreset, isWritable
+from ElastixLib.preset import *
 
 
 def makeAction(parent, text, slot, icon=None):
@@ -78,7 +78,7 @@ class PresetManagerLogic:
         return preset
     return None
 
-  def getRegistrationIndexByPresetId(self, presetId):
+  def getIdxByPresetId(self, presetId):
     for presetIndex, preset in enumerate(self.getRegistrationPresets()):
       if preset.getID() == presetId:
         return presetIndex
@@ -92,55 +92,54 @@ class PresetManagerLogic:
     pass
 
   def exportUserDatabase(self):
+    # TODO: implement
     # zip whole database and download
     pass
 
-  def savePreset(self, preset: InScenePreset, keep=False):
-    if not isinstance(preset, InScenePreset):
+  def savePreset(self, preset: InScenePreset) -> str:
+    if not isWritable(preset):
       raise TypeError(f"Only presets of type {InScenePreset.__class__.__name__} can be persisted to the UserDatabase")
 
-    # TODO: add button to save InScenePreset to user database
-    # TODO: ask user if they want to keep in scene preset
-    # create folder in db
-    # create xml
-    # copy txt files
+    files = preset.getParameterFiles()
+    tempPreset = copyPreset(preset)
+    if len(files) > 0:
+      try:
+        import xml.etree.ElementTree as ET
+        builtinXml = self.builtinDatabase.DATABASE_FILE
+        elastixUserFolder = self.getUserPresetsDir()
 
-    # TODO: check if preset exists and raise error if so (maybe allowing overwriting?)
+        presetID = tempPreset.getID()
+        outputFolder = Path(elastixUserFolder) / presetID
+        outputFolder.mkdir(exist_ok=False)
 
-    filenames = dialog.getParameterFiles()
-    if len(filenames) > 0:
-      from shutil import copyfile
-      import xml.etree.ElementTree as ET
-      presetDatabase = self.logic.databaseFile
-      xml = ET.parse(presetDatabase)
-      root = xml.getroot()
-      attributes = dialog.getMetaInformation()
+        from shutil import copyfile
+        presetXml = str(outputFolder / "preset.xml")
+        copyfile(builtinXml, presetXml)
 
-      presetElement = ET.SubElement(root, "ParameterSet", attributes)
-      parFilesElement = ET.SubElement(presetElement, "ParameterFiles")
+        # read builtin xml, remove all elements and add preset
+        xml = ET.parse(presetXml)
+        root = xml.getroot()
+        root.clear()
+        attributes = tempPreset.getMetaInformation(
+          [ID_KEY, MODALITY_KEY, CONTENT_KEY, PUBLICATIONS_KEY, DESCRIPTION_KEY]
+        )
+        presetElement = ET.SubElement(root, "ParameterSet", attributes)
+        parFilesElement = ET.SubElement(presetElement, "ParameterFiles")
 
-      # Copy parameter files to database directory
-      for file in filenames:
-        filename = os.path.basename(file)
-        newFilePath = os.path.join(folder, filename)
-        createFileCopy = True
-        discard = False
-        if os.path.exists(newFilePath):
-          import hashlib
-          # check if identical
-          if hashlib.md5(open(newFilePath, 'rb').read()).hexdigest() == hashlib.md5(open(file, 'rb').read()).hexdigest():
-            createFileCopy = False
-          else:  # not identical but same name
-            if self.overwriteParFile(filename):
-              createFileCopy = True
-            else:
-              discard = True
-        if createFileCopy:
-          copyfile(file, newFilePath)
-        if not discard:
+        # Copy parameter files to database directory
+        for file in files:
+          filename = os.path.basename(file)
+          newFilePath = os.path.join(outputFolder, filename)
+
+          from shutil import move
+          move(file, newFilePath)
           ET.SubElement(parFilesElement, "File", {"Name": filename})
 
-      xml.write(presetDatabase)
+        xml.write(presetXml)
+
+        return presetID
+      finally:
+        tempPreset.delete()
 
 
 class PresetManagerDialog:
@@ -282,8 +281,11 @@ class PresetManagerDialog:
   def onSavePresetButton(self):
     # Can only be done if InScenePreset is selected
     if isWritable(self._currentPreset):
-      # TODO: implement
-      print("can be saved")
+      newPresetId = self.manager.savePreset(self._currentPreset)
+      if newPresetId:
+        self.refreshRegistrationPresetList()
+        idx = self.manager.getIdxByPresetId(newPresetId)
+        self.ui.presetSelector.currentIndex = idx
 
   def onAddButton(self):
     w = self.ui.listWidget
@@ -332,15 +334,6 @@ class PresetManagerDialog:
     currentItem = w.takeItem(fromRow)
     w.insertItem(toRow, currentItem)
 
-  def getMetaInformation(self):
-    attributes = {}
-    attributes['content'] = self.ui.contentBox.text
-    attributes['description'] = self.ui.descriptionBox.plainText
-    attributes['id'] = self.ui.idBox.text
-    attributes['modality'] = self.ui.modalityBox.text
-    attributes['publications'] = self.ui.publicationsBox.plainText
-    return attributes
-
   def updateGUI(self):
     w = self.ui.listWidget
     validParameterFiles = w.count > 0 and all(w.item(rowIdx) is not None for rowIdx in range(w.count))
@@ -375,13 +368,13 @@ class PresetManagerDialog:
 
   def _populateForm(self, preset):
     with BlockSignals([self.ui.idBox, self.ui.modalityBox, self.ui.contentBox, self.ui.descriptionBox,
-                       self.ui.publicationsBox, self.ui.typeLabel]):
+                       self.ui.publicationsBox]):
       self.ui.idBox.text = "" if not preset else preset.getID()
       self.ui.modalityBox.text = "" if not preset else preset.getModality()
       self.ui.contentBox.text = "" if not preset else preset.getContent()
       self.ui.descriptionBox.plainText = "" if not preset else preset.getDescription()
       self.ui.publicationsBox.plainText = "" if not preset else preset.getPublications()
-      self.ui.typeLabel.text = ""
+    self.ui.typeLabel.text = ""
 
   def enableToolButtons(self, preset):
     selectedRow = self.getSelectedRow()
@@ -404,7 +397,7 @@ class PresetManagerDialog:
       textNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTextNode")
       self.ui.textWidget.setMRMLTextNode(textNode)
       self.refreshRegistrationPresetList()
-      self.ui.presetSelector.currentIndex = self.manager.getRegistrationIndexByPresetId(presetId)
+      self.ui.presetSelector.currentIndex = self.manager.getIdxByPresetId(presetId)
       self.onPresetSelected()
       returnCode = self.widget.exec_()
       return returnCode

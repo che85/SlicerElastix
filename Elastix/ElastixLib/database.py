@@ -114,18 +114,6 @@ class BuiltinElastixDatabase(ElastixDatabase):
   def getPresetsDir(self):
     return str(Path(self.DATABASE_FILE).parent)
 
-  # handling things like listing, cloning, creating, modifying ...
-  # TODO: could also have signals for the widget to connect to?
-
-  def overwriteParFile(self, filename):
-    # TODO: overwrite not allowed
-    d = qt.QDialog()
-    resp = qt.QMessageBox.warning(d, "Overwrite File?",
-                                  "File \"%s\" already exists and is not identical, do you want to overwrite it? (Clicking Discard would exclude the file from the preset)" % filename,
-                                  qt.QMessageBox.Save | qt.QMessageBox.Discard | qt.QMessageBox.Abort,
-                                  qt.QMessageBox.Save)
-    return resp == qt.QMessageBox.Save
-
   def _getRegistrationPresets(self):
     return self.getRegistrationPresetsFromXML(self.DATABASE_FILE)
 
