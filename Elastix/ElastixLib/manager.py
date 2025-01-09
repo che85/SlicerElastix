@@ -7,17 +7,6 @@ from ElastixLib.database import BuiltinElastixDatabase, UserElastixDataBase, InS
 from ElastixLib.preset import *
 
 
-def makeAction(parent, text, slot, icon=None):
-  action = qt.QAction(text, parent)
-  action.connect('triggered(bool)', slot)
-
-  if icon is not None:
-    action.setIcon(slicer.app.style().standardIcon(icon))
-
-  parent.addAction(action)
-  return action
-
-
 class BlockSignals:
   def __init__(self, elements):
     self.elements = elements
@@ -158,9 +147,6 @@ class PresetManagerDialog:
     self.widget = slicer.util.loadUI(os.path.join(scriptedModulesPath, 'Resources', "UI/PresetManager.ui"))
     self.ui = slicer.util.childWidgetVariables(self.widget)
 
-    self.ui.clonePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerEditCopy.png"))
-    self.ui.savePresetButton.setIcon(qt.QIcon(":Icons/Small/SlicerSave.png"))
-
     self.ui.addButton.setIcon(qt.QIcon(":Icons/Add.png"))
     self.ui.removeButton.setIcon(qt.QIcon(":Icons/Remove.png"))
 
@@ -187,12 +173,6 @@ class PresetManagerDialog:
     self.ui.textWidget.editingChanged.connect(self.onEditingChanged)
     self.ui.textWidget.setMRMLScene(slicer.mrmlScene)
 
-    # self._openFileAction = makeAction(self.ui.toolButton, text="Open Parameter File", slot=self.onOpenFileAction,
-    #                                   icon=qt.QStyle.SP_FileLinkIcon)
-    # self._openFileLocationAction = makeAction(self.ui.toolButton, text="Open Parameter File Location",
-    #                                           slot=lambda: self.onOpenFileAction(location=True),
-    #                                           icon=qt.QStyle.SP_DirLinkIcon)
-
   def onIdChanged(self, text):
     self._currentPreset.setID(text)
     self.updateGUI()
@@ -207,12 +187,12 @@ class PresetManagerDialog:
     self.updateGUI()
     self.refreshCurrentPresetName()
 
-  def onDescriptionChanged(self, text):
-    self._currentPreset.setDescription(text)
+  def onDescriptionChanged(self):
+    self._currentPreset.setDescription(self.ui.descriptionBox.plainText)
     self.updateGUI()
 
-  def onPublicationsChanged(self, text):
-    self._currentPreset.setPublications(text)
+  def onPublicationsChanged(self):
+    self._currentPreset.setPublications(self.ui.publicationsBox.plainText)
     self.updateGUI()
 
   def onEditingChanged(self, active):
@@ -379,7 +359,6 @@ class PresetManagerDialog:
     selectedRow = self.getSelectedRow()
     presetWritable = preset is not None and isWritable(preset)
     self.ui.addButton.setEnabled(preset is not None and presetWritable)
-    self.ui.toolButton.setEnabled(False)
     self.ui.removeButton.setEnabled(selectedRow is not None and preset is not None and presetWritable)
     self.ui.moveUpButton.setEnabled(selectedRow and selectedRow.row() > 0 and presetWritable)
     self.ui.moveDownButton.setEnabled(selectedRow and selectedRow.row() < self.ui.listWidget.count - 1 and presetWritable)

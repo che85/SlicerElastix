@@ -62,27 +62,28 @@ class ElastixDatabase(abc.ABC):
 
     # Create python list from XML for convenience
     registrationPresets = []
-    for parameterSetIndex in range(elastixParameterSetDatabaseXml.GetNumberOfNestedElements()):
-      parameterSetXml = elastixParameterSetDatabaseXml.GetNestedElement(parameterSetIndex)
-      parameterFilesXml = parameterSetXml.FindNestedElementWithName('ParameterFiles')
-      parameterFiles = []
-      for parameterFileIndex in range(parameterFilesXml.GetNumberOfNestedElements()):
-        parameterFiles.append(os.path.join(
-          str(Path(elastixParameterSetDatabasePath).parent),
-          parameterFilesXml.GetNestedElement(parameterFileIndex).GetAttribute('Name'))
-        )
-      parameterSetAttributes = \
-        [parameterSetXml.GetAttribute(attr) for attr in ['id', 'modality', 'content', 'description', 'publications']]
-      try:
-        registrationPresets.append(
-          createPreset(*parameterSetAttributes, parameterFiles=parameterFiles)
-        )
-      except FileNotFoundError as exc:
-        msg = f"Cannot load preset. Loading failed with error: {exc}"
-        logging.error(msg)
-        if self.logCallback:
-          self.logCallback(msg)
-        continue
+    if elastixParameterSetDatabaseXml is not None:
+      for parameterSetIndex in range(elastixParameterSetDatabaseXml.GetNumberOfNestedElements()):
+        parameterSetXml = elastixParameterSetDatabaseXml.GetNestedElement(parameterSetIndex)
+        parameterFilesXml = parameterSetXml.FindNestedElementWithName('ParameterFiles')
+        parameterFiles = []
+        for parameterFileIndex in range(parameterFilesXml.GetNumberOfNestedElements()):
+          parameterFiles.append(os.path.join(
+            str(Path(elastixParameterSetDatabasePath).parent),
+            parameterFilesXml.GetNestedElement(parameterFileIndex).GetAttribute('Name'))
+          )
+        parameterSetAttributes = \
+          [parameterSetXml.GetAttribute(attr) if parameterSetXml.GetAttribute(attr) is not None else "" for attr in ['id', 'modality', 'content', 'description', 'publications']]
+        try:
+          registrationPresets.append(
+            createPreset(*parameterSetAttributes, parameterFiles=parameterFiles)
+          )
+        except FileNotFoundError as exc:
+          msg = f"Cannot load preset. Loading failed with error: {exc}"
+          logging.error(msg)
+          if self.logCallback:
+            self.logCallback(msg)
+          continue
     return registrationPresets
 
 
